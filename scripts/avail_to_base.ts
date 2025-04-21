@@ -65,6 +65,47 @@ let lastReceiveBlock = 0;
 let lastTransactionHash: string | null = null;
 const provider = new ethers.providers.JsonRpcProvider(ETH_PROVIDER_URL);
 
+function validateEnvVars() {
+  const requiredEnvVars = [
+    'NEXT_PUBLIC_BRIDGE_PROXY_ETH',
+    'BRIDGE_API_URL',
+    'ETH_PROVIDER_URL',
+    'WALLET_SIGNER_KEY_ETH',
+    'BLOCK_NUMBER',
+    'TX_INDEX',
+    'FINALIZED_BLOCK',
+    'CONFIG',
+    'SRC_CHAIN',
+    'DST_CHAIN',
+    'NEXT_PUBLIC_AVAIL_TOKEN_BASE',
+    'NEXT_PUBLIC_MANAGER_ADDRESS_BASE',
+    'NEXT_PUBLIC_WORMHOLE_TRANSCEIVER_BASE',
+    'NEXT_PUBLIC_AVAIL_TOKEN_ETH',
+    'NEXT_PUBLIC_MANAGER_ADDRESS_ETH',
+    'NEXT_PUBLIC_WORMHOLE_TRANSCEIVER_ETH'
+  ];
+
+  const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+  
+  if (missingVars.length > 0) {
+    console.error('❌ Missing required environment variables:');
+    missingVars.forEach(varName => console.error(`  - ${varName}`));
+    process.exit(1);
+  }
+
+  if (isNaN(parseInt(process.env.BLOCK_NUMBER!))) {
+    console.error('❌ BLOCK_NUMBER must be a valid number');
+    process.exit(1);
+  }
+
+  if (isNaN(parseInt(process.env.TX_INDEX!))) {
+    console.error('❌ TX_INDEX must be a valid number');
+    process.exit(1);
+  }
+
+  console.log('✅ All required environment variables are set');
+}
+
 async function attemptReceiveAvail(proof: ProofData, contractInstance: ethers.Contract): Promise<{ success: boolean; error?: any }> {
   const MAX_RECEIVE_ATTEMPTS = 3;
   const RETRY_DELAY = 5 * 60 * 1000; // 5 minutes in milliseconds
@@ -130,6 +171,8 @@ async function attemptReceiveAvail(proof: ProofData, contractInstance: ethers.Co
 }
 
 async function main() {
+  
+  validateEnvVars();
   console.log("⏳ Running script for", process.env.CONFIG);
   while (true) {
     try {
@@ -225,7 +268,8 @@ async function main() {
         const ethBalance = await publicClient.getBalance({
           address: srcSigner.address.address.toString() as `0x${string}`,
         });
-        const minEthRequired = parseUnits("0.1", 18); // 0.01 ETH minimum
+
+        const minEthRequired = parseUnits("0.001", 18); // 0.01 ETH minimum
         if (ethBalance < minEthRequired) {
           console.log(`❌ Insufficient ETH for gas. Required: 0.001 ETH, Current: ${formatUnits(ethBalance, 18)} ETH`);
           process.exit(1);
@@ -244,6 +288,7 @@ async function main() {
             xfer(),
             srcSigner.signer
           );
+          
           console.log("✅ Bridge transaction initiated");
           console.log(`🔗 View on wormholescan: https://wormholescan.io/#/tx/${txids[1].txid ?? txids[0].txid}?network=Mainnet`);
           process.exit(0);
