@@ -1,12 +1,20 @@
 {
   "name": "liqudity-bridge-rebalancer",
-  "version": "1.0.50",
+  "version": "1.0.0",
+  "description": "Bridge rebalancer for Avail to Base",
+  "main": "scripts/avail_to_base.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "bun run --watch src/index.ts"
+    "start": "bun run scripts/avail_to_base.ts",
+    "base-to-avail": "bun run scripts/base_to_avail.ts"
   },
   "dependencies": {
-    "elysia": "latest"
+    "@polkadot/api": "^10.13.1",
+    "@polkadot/keyring": "^12.6.2",
+    "@polkadot/util": "^12.6.2",
+    "@wormhole-foundation/sdk": "^1.15.3",
+    "@wormhole-foundation/sdk-route-ntt": "^0.7.1",
+    "ethers": "^5.7.2",
+    "viem": "^2.7.9"
   },
   "devDependencies": {
     "bun-types": "latest"
