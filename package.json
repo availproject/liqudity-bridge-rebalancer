@@ -11,9 +11,15 @@
     "@polkadot/api": "^10.13.1",
     "@polkadot/keyring": "^12.6.2",
     "@polkadot/util": "^12.6.2",
+    "@safe-global/protocol-kit": "^6.0.3",
+    "@safe-global/safe-core-sdk-types": "^5.1.0",
+    "@types/json-bigint": "^1.0.4",
     "@wormhole-foundation/sdk": "^1.15.3",
     "@wormhole-foundation/sdk-route-ntt": "^0.7.1",
+    "avail-js-sdk": "^0.4.2",
+    "bignumber.js": "^9.3.0",
     "ethers": "^5.7.2",
+    "json-bigint": "^1.0.0",
     "viem": "^2.7.9"
   },
   "devDependencies": {

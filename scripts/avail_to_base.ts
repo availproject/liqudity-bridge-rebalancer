@@ -11,6 +11,10 @@ import "@wormhole-foundation/sdk-evm-ntt";
 import { bridgeContractAbi } from "../utils/abi";
 import { formatUnits, parseUnits } from "viem";
 
+import jsonbigint from "json-bigint"; 
+const JSONBigInt = jsonbigint({ useNativeBigInt: true });
+
+
 const BRIDGE_ADDRESS = process.env.NEXT_PUBLIC_BRIDGE_PROXY_ETH!;
 const BRIDGE_API_URL = process.env.BRIDGE_API_URL!;
 const ETH_PROVIDER_URL = process.env.ETH_PROVIDER_URL!;
@@ -49,7 +53,12 @@ interface Message {
   destinationDomain: number;
   from: string;
   id: number;
-  message: any;
+  message: {
+    fungibleToken: {
+      amount: bigint;
+      asset_id: `0x${string}`;
+    };
+  };
   originDomain: number;
   to: string;
 }
@@ -108,7 +117,7 @@ function validateEnvVars() {
 
 async function attemptReceiveAvail(proof: ProofData, contractInstance: ethers.Contract): Promise<{ success: boolean; error?: any }> {
   const MAX_RECEIVE_ATTEMPTS = 3;
-  const RETRY_DELAY = 5 * 60 * 1000; // 5 minutes in milliseconds
+  const RETRY_DELAY = 1 * 60 * 1000; // 5 minutes in milliseconds
   let attempts = 0;
 
   while (attempts < MAX_RECEIVE_ATTEMPTS) {
@@ -134,7 +143,7 @@ async function attemptReceiveAvail(proof: ProofData, contractInstance: ethers.Co
             ],
             [
               proof.message.message.fungibleToken.asset_id,
-              proof.message.message.fungibleToken.amount,
+              BigInt(proof.message.message.fungibleToken.amount),
             ]
           ),
           proof.message.id,
@@ -149,8 +158,8 @@ async function attemptReceiveAvail(proof: ProofData, contractInstance: ethers.Co
           proof.leaf,
           proof.leafIndex,
         ],
-        { gasLimit: 3000000 }
       );
+
       const received = await receipt.wait();
       const network = process.env.CONFIG === "Mainnet" ? "" : "sepolia.";
       console.log(`✅ AVAIL received in block: ${received.blockNumber}`);
@@ -193,11 +202,12 @@ async function main() {
         );
         if (proofResponse.status != 200) {
           console.log("❌ Failed to fetch proof");
-          console.log(proofResponse);
+          console.log(await proofResponse.text());
           process.exit(0);
         }
-        let proof = (await proofResponse.json()) as ProofData;
-        console.log("✅ Proof fetched successfully");
+        const proofText = await proofResponse.text();
+        const proof: ProofData = JSONBigInt.parse(proofText);
+        console.log("✅ Proof fetched successfully" );
 
         const signer = new ethers.Wallet(WALLET_SIGNER_KEY_ETH, provider);
         const contractInstance = new ethers.Contract(
