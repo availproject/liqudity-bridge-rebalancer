@@ -1,12 +1,5 @@
 import { ethers } from "ethers";
 import { createPublicClient, encodeAbiParameters, http } from "viem";
-import {
-  TransactionId,
-  Wormhole,
-  signSendWait,
-} from "@wormhole-foundation/sdk";
-import evm from "@wormhole-foundation/sdk/platforms/evm";
-import { getSigner } from "../utils/signer";
 import "@wormhole-foundation/sdk-evm-ntt";
 import { bridgeContractAbi } from "../utils/abi";
 import { formatUnits, parseUnits } from "viem";
@@ -83,15 +76,6 @@ function validateEnvVars() {
     'BLOCK_NUMBER',
     'TX_INDEX',
     'FINALIZED_BLOCK',
-    'CONFIG',
-    'SRC_CHAIN',
-    'DST_CHAIN',
-    'NEXT_PUBLIC_AVAIL_TOKEN_BASE',
-    'NEXT_PUBLIC_MANAGER_ADDRESS_BASE',
-    'NEXT_PUBLIC_WORMHOLE_TRANSCEIVER_BASE',
-    'NEXT_PUBLIC_AVAIL_TOKEN_ETH',
-    'NEXT_PUBLIC_MANAGER_ADDRESS_ETH',
-    'NEXT_PUBLIC_WORMHOLE_TRANSCEIVER_ETH'
   ];
 
   const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -240,70 +224,6 @@ async function main() {
           console.log("✅ Transaction finalized successfully");
         } else {
           console.log("❌ Transaction failed to finalize");
-          process.exit(1);
-        }
-
-        const wh = new Wormhole(process.env.CONFIG! as "Mainnet" | "Testnet" | "Devnet", [evm.Platform]);
-        const src = wh.getChain(process.env.SRC_CHAIN! as "Ethereum" | "Base");
-        const dst = wh.getChain(process.env.DST_CHAIN! as "Ethereum" | "Base");
-
-        const srcSigner = await getSigner(src);
-        const dstSigner = await getSigner(dst);
-
-        const srcNtt = await src.getProtocol("Ntt", {
-            ntt: UPDATED_NTT_TOKENS[src.chain],
-          });
-
-        const balance = await publicClient.readContract({
-            address: UPDATED_NTT_TOKENS[src.chain]!.token as `0x${string}`,
-            abi: [{
-              inputs: [{ name: "account", type: "address" }],
-              name: "balanceOf",
-              outputs: [{ name: "", type: "uint256" }],
-              stateMutability: "view",
-              type: "function",
-            }],
-            functionName: "balanceOf",
-            args: [srcSigner.address.address.toString() as `0x${string}`],
-          });
-
-          const formattedBalance = formatUnits(balance, await srcNtt.getTokenDecimals());
-          console.log(`💰 Current AVAIL balance: ${formattedBalance}`);
-  
-          if (balance === 0n) {
-            console.log("❌ No AVAIL tokens to bridge");
-            process.exit(1);
-          }
-
-        const ethBalance = await publicClient.getBalance({
-          address: srcSigner.address.address.toString() as `0x${string}`,
-        });
-
-        const minEthRequired = parseUnits("0.001", 18); // 0.01 ETH minimum
-        if (ethBalance < minEthRequired) {
-          console.log(`❌ Insufficient ETH for gas. Required: 0.001 ETH, Current: ${formatUnits(ethBalance, 18)} ETH`);
-          process.exit(1);
-        }
-        try {
-          console.log("🔄 Initiating bridge to Base...");
-          const xfer = () =>
-            srcNtt.transfer(srcSigner.address.address, balance, dstSigner.address, {
-              queue: false,
-              automatic: true,
-              gasDropoff: 0n,
-            });
-
-          const txids: TransactionId[] = await signSendWait(
-            src,
-            xfer(),
-            srcSigner.signer
-          );
-          
-          console.log("✅ Bridge transaction initiated");
-          console.log(`🔗 View on wormholescan: https://wormholescan.io/#/tx/${txids[1].txid ?? txids[0].txid}?network=Mainnet`);
-          process.exit(0);
-        } catch (error) {
-          console.log("❌ Bridge transaction failed:", error);
           process.exit(1);
         }
       }
