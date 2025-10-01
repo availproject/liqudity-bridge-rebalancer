@@ -1,12 +1,10 @@
 import { ethers } from "ethers";
-import { createPublicClient, encodeAbiParameters, http } from "viem";
-import "@wormhole-foundation/sdk-evm-ntt";
+import { createPublicClient, encodeAbiParameters, Hex, http } from "viem";
 import { bridgeContractAbi } from "../utils/abi";
 import { formatUnits, parseUnits } from "viem";
 
-import jsonbigint from "json-bigint"; 
+import jsonbigint from "json-bigint";
 const JSONBigInt = jsonbigint({ useNativeBigInt: true });
-
 
 const BRIDGE_ADDRESS = process.env.NEXT_PUBLIC_BRIDGE_PROXY_ETH!;
 const BRIDGE_API_URL = process.env.BRIDGE_API_URL!;
@@ -21,12 +19,16 @@ export const UPDATED_NTT_TOKENS = {
   Base: {
     token: process.env.NEXT_PUBLIC_AVAIL_TOKEN_BASE!,
     manager: process.env.NEXT_PUBLIC_MANAGER_ADDRESS_BASE!,
-    transceiver: { wormhole: process.env.NEXT_PUBLIC_WORMHOLE_TRANSCEIVER_BASE! },
+    transceiver: {
+      wormhole: process.env.NEXT_PUBLIC_WORMHOLE_TRANSCEIVER_BASE!,
+    },
   },
   Ethereum: {
     token: process.env.NEXT_PUBLIC_AVAIL_TOKEN_ETH!,
     manager: process.env.NEXT_PUBLIC_MANAGER_ADDRESS_ETH!,
-    transceiver: { wormhole: process.env.NEXT_PUBLIC_WORMHOLE_TRANSCEIVER_ETH! },
+    transceiver: {
+      wormhole: process.env.NEXT_PUBLIC_WORMHOLE_TRANSCEIVER_ETH!,
+    },
   },
 };
 
@@ -49,7 +51,7 @@ interface Message {
   message: {
     fungibleToken: {
       amount: bigint;
-      asset_id: `0x${string}`;
+      asset_id: Hex;
     };
   };
   originDomain: number;
@@ -69,44 +71,51 @@ const provider = new ethers.providers.JsonRpcProvider(ETH_PROVIDER_URL);
 
 function validateEnvVars() {
   const requiredEnvVars = [
-    'NEXT_PUBLIC_BRIDGE_PROXY_ETH',
-    'BRIDGE_API_URL',
-    'ETH_PROVIDER_URL',
-    'WALLET_SIGNER_KEY_ETH',
-    'BLOCK_NUMBER',
-    'TX_INDEX',
-    'FINALIZED_BLOCK',
+    "NEXT_PUBLIC_BRIDGE_PROXY_ETH",
+    "BRIDGE_API_URL",
+    "ETH_PROVIDER_URL",
+    "WALLET_SIGNER_KEY_ETH",
+    "BLOCK_NUMBER",
+    "TX_INDEX",
+    "FINALIZED_BLOCK",
   ];
 
-  const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
-  
+  const missingVars = requiredEnvVars.filter(
+    (varName) => !process.env[varName],
+  );
+
   if (missingVars.length > 0) {
-    console.error('❌ Missing required environment variables:');
-    missingVars.forEach(varName => console.error(`  - ${varName}`));
+    console.error("❌ Missing required environment variables:");
+    missingVars.forEach((varName) => console.error(`  - ${varName}`));
     process.exit(1);
   }
 
   if (isNaN(parseInt(process.env.BLOCK_NUMBER!))) {
-    console.error('❌ BLOCK_NUMBER must be a valid number');
+    console.error("❌ BLOCK_NUMBER must be a valid number");
     process.exit(1);
   }
 
   if (isNaN(parseInt(process.env.TX_INDEX!))) {
-    console.error('❌ TX_INDEX must be a valid number');
+    console.error("❌ TX_INDEX must be a valid number");
     process.exit(1);
   }
 
-  console.log('✅ All required environment variables are set');
+  console.log("✅ All required environment variables are set");
 }
 
-async function attemptReceiveAvail(proof: ProofData, contractInstance: ethers.Contract): Promise<{ success: boolean; error?: any }> {
+async function attemptReceiveAvail(
+  proof: ProofData,
+  contractInstance: ethers.Contract,
+): Promise<{ success: boolean; error?: any }> {
   const MAX_RECEIVE_ATTEMPTS = 3;
   const RETRY_DELAY = 1 * 60 * 1000; // 5 minutes in milliseconds
   let attempts = 0;
 
   while (attempts < MAX_RECEIVE_ATTEMPTS) {
     try {
-      console.log(`🔄 Attempting to receive AVAIL (Attempt ${attempts + 1}/${MAX_RECEIVE_ATTEMPTS})...`);
+      console.log(
+        `🔄 Attempting to receive AVAIL (Attempt ${attempts + 1}/${MAX_RECEIVE_ATTEMPTS})...`,
+      );
       const receipt = await contractInstance.receiveAVAIL(
         [
           "0x02", // token transfer type
@@ -128,7 +137,7 @@ async function attemptReceiveAvail(proof: ProofData, contractInstance: ethers.Co
             [
               proof.message.message.fungibleToken.asset_id,
               BigInt(proof.message.message.fungibleToken.amount),
-            ]
+            ],
           ),
           proof.message.id,
         ],
@@ -147,15 +156,22 @@ async function attemptReceiveAvail(proof: ProofData, contractInstance: ethers.Co
       const received = await receipt.wait();
       const network = process.env.CONFIG === "Mainnet" ? "" : "sepolia.";
       console.log(`✅ AVAIL received in block: ${received.blockNumber}`);
-      console.log(`🔗 View on Etherscan: https://${network}etherscan.io/tx/${received.transactionHash}`);
+      console.log(
+        `🔗 View on Etherscan: https://${network}etherscan.io/tx/${received.transactionHash}`,
+      );
       lastReceiveBlock = received.blockNumber;
       lastTransactionHash = received.transactionHash;
       return { success: true };
     } catch (error) {
       attempts++;
-      console.log(`❌ Failed to receive AVAIL (Attempt ${attempts}/${MAX_RECEIVE_ATTEMPTS}):`, error);
+      console.log(
+        `❌ Failed to receive AVAIL (Attempt ${attempts}/${MAX_RECEIVE_ATTEMPTS}):`,
+        error,
+      );
       if (attempts < MAX_RECEIVE_ATTEMPTS) {
-        console.log(`⏳ Waiting ${RETRY_DELAY/1000/60} minutes before next attempt...`);
+        console.log(
+          `⏳ Waiting ${RETRY_DELAY / 1000 / 60} minutes before next attempt...`,
+        );
         await new Promise((f) => setTimeout(f, RETRY_DELAY));
       }
     }
@@ -164,7 +180,6 @@ async function attemptReceiveAvail(proof: ProofData, contractInstance: ethers.Co
 }
 
 async function main() {
-  
   validateEnvVars();
   console.log("⏳ Running script for", process.env.CONFIG);
   while (true) {
@@ -182,7 +197,11 @@ async function main() {
       if (!hasReceivedAvail && lastCommittedBlock >= txBlockNumber) {
         console.log("🔍 Fetching the proof...");
         const proofResponse = await fetch(
-          BRIDGE_API_URL + "/eth/proof/" + FINALIZED_BLOCK + "?index=" + TX_INDEX
+          BRIDGE_API_URL +
+            "/eth/proof/" +
+            FINALIZED_BLOCK +
+            "?index=" +
+            TX_INDEX,
         );
         if (proofResponse.status != 200) {
           console.log("❌ Failed to fetch proof");
@@ -191,13 +210,13 @@ async function main() {
         }
         const proofText = await proofResponse.text();
         const proof: ProofData = JSONBigInt.parse(proofText);
-        console.log("✅ Proof fetched successfully" );
+        console.log("✅ Proof fetched successfully");
 
         const signer = new ethers.Wallet(WALLET_SIGNER_KEY_ETH, provider);
         const contractInstance = new ethers.Contract(
           BRIDGE_ADDRESS,
           bridgeContractAbi,
-          signer
+          signer,
         );
 
         const result = await attemptReceiveAvail(proof, contractInstance);
@@ -216,11 +235,11 @@ async function main() {
         });
 
         const receipt = await publicClient.waitForTransactionReceipt({
-          hash: lastTransactionHash as `0x${string}`,
+          hash: lastTransactionHash as Hex,
           confirmations: 2,
         });
 
-        if (receipt.status === 'success') {
+        if (receipt.status === "success") {
           console.log("✅ Transaction finalized successfully");
         } else {
           console.log("❌ Transaction failed to finalize");
@@ -229,7 +248,7 @@ async function main() {
       }
 
       console.log(
-        `⏳ Waiting for bridge inclusion commitment (${lastCommittedBlock}/${txBlockNumber})...`
+        `⏳ Waiting for bridge inclusion commitment (${lastCommittedBlock}/${txBlockNumber})...`,
       );
       await new Promise((f) => setTimeout(f, 60 * 1000));
     } catch (error) {
