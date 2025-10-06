@@ -1,6 +1,6 @@
 import { createPublicClient, createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { mainnet, sepolia } from "viem/chains";
+import { base, mainnet, sepolia } from "viem/chains";
 
 export const publicClient = createPublicClient({
   chain: mainnet,
@@ -12,5 +12,10 @@ export const account = privateKeyToAccount(`0x${process.env.PRIVATE_KEY}`);
 export const walletClient = createWalletClient({
   account, // Include account here
   chain: sepolia,
+  transport: http(),
+});
+
+export const baseClient = createPublicClient({
+  chain: base,
   transport: http(),
 });

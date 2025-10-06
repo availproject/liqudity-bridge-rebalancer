@@ -99,7 +99,7 @@ export async function sendMessage(
   account: KeyringPair,
   api: ApiPromise,
   data: SendMessageTypedData,
-): Promise<TxnReturnType> {
+): Promise<TxnReturnType<SubmittableResult["status"]>> {
   const txResult = await new Promise<SubmittableResult>((resolve) => {
     api.tx.vector
       .sendMessage(data.message, data.to, data.destinationDomain)
@@ -125,7 +125,7 @@ export async function sendMessage(
   }
 
   return {
-    status: txResult.status.toString(),
+    status: txResult.status,
     txHash: txResult.txHash.toString(),
   };
 }
@@ -283,3 +283,6 @@ export const substrateAddressToPublicKey = (accountId: string) => {
 
   return publicKeyByte32String;
 };
+
+export const sleep = (ms: number) =>
+  new Promise((resolve) => setTimeout(resolve, ms));

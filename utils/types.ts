@@ -56,7 +56,8 @@ export interface SendMessageTypedData {
   destinationDomain: number;
   message: {
     FungibleToken: {
-      amount: bigint;
+      //verify the extrinsic works with string
+      amount: bigint | string;
       assetId: Hex;
     };
   };
@@ -81,8 +82,8 @@ export type WithBalanceData<T, U = any> = T & {
   };
 };
 
-export interface TxnReturnType {
-  status: string;
+export interface TxnReturnType<T = string> {
+  status: T;
   txHash: string;
 }
 

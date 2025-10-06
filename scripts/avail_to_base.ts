@@ -10,14 +10,15 @@ import { getSigner } from "../utils/signer";
 import "@wormhole-foundation/sdk-evm-ntt";
 import { bridgeContractAbi } from "../utils/abi";
 import { formatUnits, parseUnits } from "viem";
-import { validateEnvVars } from "../utils/helpers";
+import { sendMessage } from "../utils/helpers";
 import {
   ProofData,
   HeadResponse,
-  AvailMessage,
   IResponse,
+  SendMessageTypedData,
 } from "../utils/types";
 import jsonbigint from "json-bigint";
+import { ApiPromise, KeyringPair } from "avail-js-sdk";
 
 const JSONBigInt = jsonbigint({ useNativeBigInt: true });
 
@@ -46,17 +47,19 @@ export const UPDATED_NTT_TOKENS = {
     },
   },
 };
+
 let hasReceivedAvail = false;
 let lastReceiveBlock = 0;
 let lastTransactionHash: string | null = null;
 const provider = new ethers.providers.JsonRpcProvider(ETH_PROVIDER_URL);
 
-async function attemptReceiveAvail(
+//legacy claim helper
+async function claimOnETH(
   proof: ProofData,
   contractInstance: ethers.Contract,
 ): Promise<IResponse> {
   const MAX_RECEIVE_ATTEMPTS = 3;
-  const RETRY_DELAY = 1 * 60 * 1000; // 5 minutes in milliseconds
+  const RETRY_DELAY = 1 * 60 * 1000; // 5 min
   let attempts = 0;
 
   while (attempts < MAX_RECEIVE_ATTEMPTS) {
@@ -127,24 +130,26 @@ async function attemptReceiveAvail(
   return { success: false, error: "Maximum receive AVAIL attempts reached" };
 }
 
-async function main() {
-  validateEnvVars();
-  console.log("⏳ Running script for", process.env.CONFIG);
+export async function AVAIL_TO_BASE(api: ApiPromise, account: KeyringPair) {
+  const data: SendMessageTypedData = {
+    destinationDomain: 2,
+    message: {
+      FungibleToken: {
+        amount: "10000000000000",
+        assetId: "0x0000",
+      },
+    },
+    to: process.env.ETH_HOT_WALLET_ADDY!,
+  };
 
-  /*
-  0. initial env checks + plus check if the last run in still in process then only run this again.
-  0.5 fetch pool balances from onchain - check delta, if it's greater than a threshold, move forward with rebalancing
-  1. start with initiate vector.sendMessage()
-  2. track txn receipt using the new api
-  3. every 10 minutes run while loop for proof fetching & try to claim
-    a. if claimable, claim and then track till finalisation
-  4. when money reaches ethereum, initate a approval + transfer txn through the wormhole sdk to the base
-  5. fetch VAA, until the txn is reaches base
-  6. spill to a db
+  const sendOnAvail = await sendMessage(account, api, data);
+  if (sendOnAvail.status.isFinalized!) {
+    throw new Error("Send Message Failed");
+  }
 
-try to get this deployed in the same container space with the same env access, this way the hot wallet key doesn't need to moved anywhere
-
-  */
+  await new Promise((resolve) => {
+    setTimeout(resolve, 100000);
+  });
 
   while (true) {
     try {
@@ -183,7 +188,7 @@ try to get this deployed in the same container space with the same env access, t
           signer,
         );
 
-        const result = await attemptReceiveAvail(proof, contractInstance);
+        const result = await claimOnETH(proof, contractInstance);
         if (result.success) {
           hasReceivedAvail = true;
         } else {
@@ -200,7 +205,7 @@ try to get this deployed in the same container space with the same env access, t
 
         const receipt = await publicClient.waitForTransactionReceipt({
           hash: lastTransactionHash as Hex,
-          confirmations: 2,
+          confirmations: 5,
         });
 
         if (receipt.status === "success") {
@@ -302,5 +307,3 @@ try to get this deployed in the same container space with the same env access, t
     }
   }
 }
-
-main().catch(console.error);
