@@ -12,6 +12,12 @@ export interface ProofData {
   message: AvailMessage;
 }
 
+export interface TransactionStatus {
+  blockHash: Hex;
+  txIndex: number;
+  blockNumber: number;
+}
+
 export interface AccountAndStorageProof {
   accountProof: Hex[];
   storageProof: Hex[];
@@ -47,6 +53,7 @@ export interface AvailMessage {
 }
 
 export interface HeadResponse {
+  slot: number;
   data: {
     end: number;
   };
@@ -85,7 +92,20 @@ export type WithBalanceData<T, U = any> = T & {
 export interface TxnReturnType<T = string> {
   status: T;
   txHash: string;
+  event?: {
+    type: "messageSent";
+    logIndex?: number;
+    from: Hex;
+    to: Hex;
+    messageId: bigint;
+  };
 }
+
+export type MessageSentEventArgs = {
+  from: Hex;
+  to: Hex;
+  messageId: bigint;
+};
 
 export interface ExecuteMessageTypedData {
   slot: number;

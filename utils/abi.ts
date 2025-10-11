@@ -1,3 +1,5 @@
+import { parseAbiItem } from "viem";
+
 export const bridgeContractAbi = [
   { inputs: [], name: "AccessControlBadConfirmation", type: "error" },
   {
@@ -807,3 +809,17 @@ export const availTokenAbi = [
     type: "function",
   },
 ] as const;
+
+export const balanceOfAbi = [
+  {
+    inputs: [{ name: "account", type: "address" }],
+    name: "balanceOf",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
+
+export const messageSentEvent = parseAbiItem(
+  "event MessageSent(address indexed from, bytes32 indexed to, uint256 messageId)",
+);

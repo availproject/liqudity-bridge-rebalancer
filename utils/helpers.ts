@@ -13,17 +13,54 @@ import {
   ExecuteMessageTypedData,
   ContractAvailSendTypedData,
   ContractReceiveAvailTypedData,
+  TransactionStatus,
+  MessageSentEventArgs,
+  AccountAndStorageProof,
+  ChainState,
 } from "./types";
 import { BigNumber } from "bignumber.js";
 import { publicClient, walletClient } from "./client";
-import { availTokenAbi, bridgeContractAbi } from "./abi";
+import { availTokenAbi, bridgeContractAbi, messageSentEvent } from "./abi";
 import {
+  decodeEventLog,
   encodeAbiParameters,
   Hex,
   keccak256,
   PublicClient,
   WalletClient,
 } from "viem";
+import axios from "axios";
+import jsonbigint from "json-bigint";
+
+const JSONBigInt = jsonbigint({ useNativeBigInt: true });
+
+export const getMerkleProof = async (blockhash: string, index: number) => {
+  const response = await axios.get(
+    `${process.env.bridgeApiBaseUrl}/eth/proof/${blockhash}`,
+    {
+      params: { index },
+      transformResponse: [(data) => data],
+    },
+  );
+  const proof: ContractReceiveAvailTypedData = JSONBigInt.parse(response.data);
+
+  return proof;
+};
+
+export async function getAccountStorageProofs(
+  blockhash: string,
+  messageid: number,
+) {
+  const response = await fetch(
+    `${process.env.bridgeApiBaseUrl}/v1/avl/proof/${blockhash}/${messageid}`,
+  ).catch((e) => {
+    return Response.error();
+  });
+
+  const result: AccountAndStorageProof =
+    (await response.json()) as AccountAndStorageProof;
+  return result;
+}
 
 export function validateEnvVars() {
   const requiredEnvVars = [
@@ -71,9 +108,11 @@ export function validateEnvVars() {
 export async function getTokenBalance(
   api: ApiPromise,
   chainClient: PublicClient = publicClient,
+  availAddress?: String,
+  evmAddress?: Hex,
 ) {
   const balance = (await api.query.system.account(
-    process.env.AVAIL_POOL_ADDRESS,
+    availAddress ?? process.env.AVAIL_POOL_ADDRESS,
   )) as WithBalanceData<any>;
 
   const { free, frozen } = balance.data;
@@ -83,15 +122,26 @@ export async function getTokenBalance(
   const spendableBalance = freeBalance.minus(frozenBalance);
 
   const evmPoolBalance = await chainClient.readContract({
-    address: process.env.AVAIL_TOKEN_ADDRESS as Hex,
+    address: process.env.NEXT_PUBLIC_AVAIL_TOKEN_ETH as Hex,
     abi: availTokenAbi,
     functionName: "balanceOf",
-    args: [process.env.AVAIL_POOL_ADDRESS as Hex],
+    args: [evmAddress ?? (process.env.ETH_POOL_ADDRESS as Hex)],
+  });
+
+  const gasCheck = await chainClient.getBalance({
+    address: evmAddress ?? (process.env.ETH_POOL_ADDRESS as Hex),
+  });
+
+  console.log({
+    evm: new BigNumber(evmPoolBalance),
+    avail: spendableBalance,
+    gasOnEvm: new BigNumber(gasCheck),
   });
 
   return {
-    evmPoolBalance,
-    spendableBalance,
+    evmPoolBalance: new BigNumber(evmPoolBalance),
+    gasOnEvm: new BigNumber(gasCheck),
+    availPoolBalance: spendableBalance,
   };
 }
 
@@ -134,7 +184,7 @@ export async function executeMessage(
   account: KeyringPair,
   api: ApiPromise,
   data: ExecuteMessageTypedData,
-): Promise<TxnReturnType> {
+): Promise<TxnReturnType<SubmittableResult["status"]>> {
   const txResult = await new Promise<SubmittableResult>((resolve) => {
     api.tx.vector
       .execute(
@@ -165,7 +215,7 @@ export async function executeMessage(
   }
 
   return {
-    status: txResult.status.toString(),
+    status: txResult.status,
     txHash: txResult.txHash.toString(),
   };
 }
@@ -190,10 +240,37 @@ export async function contractAvailSend(
     hash: send,
     confirmations: 5,
   });
-  return {
-    status: receipt.status,
-    txHash: send,
-  };
+
+  for (const log of receipt.logs) {
+    if (
+      log.address.toLowerCase() !==
+      process.env.AVAIL_BRIDGE_PROXY_ETH!.toLowerCase()
+    )
+      continue;
+
+    const decoded = decodeEventLog({
+      abi: [messageSentEvent],
+      data: log.data,
+      topics: log.topics,
+    });
+
+    if (decoded.eventName === "MessageSent") {
+      const { from, to, messageId } = decoded.args as MessageSentEventArgs;
+      return {
+        status: receipt.status,
+        txHash: send,
+        event: {
+          type: "messageSent",
+          from,
+          to,
+          messageId,
+          logIndex: log.logIndex,
+        },
+      };
+    }
+  }
+
+  throw new Error("MessageSent event not found in receipt logs");
 }
 
 export async function contractReceiveAvail(
@@ -253,6 +330,82 @@ export async function contractReceiveAvail(
     status: receipt.status,
     txHash: recieve,
   };
+}
+
+export async function checkTransactionStatus(
+  api: ApiPromise,
+  txHash: string,
+  type: "subscribeNewHeads" | "subscribeFinalizedHeads" = "subscribeNewHeads",
+  timeoutMs: number = 60000,
+): Promise<TransactionStatus> {
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(
+      () => reject(new Error(`Timeout after ${timeoutMs}ms`)),
+      timeoutMs,
+    ),
+  );
+
+  const statusPromise = new Promise<TransactionStatus>(
+    async (resolve, reject) => {
+      const unsubscribe = await api.rpc.chain[type](async (header) => {
+        const blockHash = header.hash;
+        const signedBlock = await api.rpc.chain.getBlock(blockHash);
+        const allEvents = await api.query.system?.events?.at(blockHash);
+
+        const extrinsicsArray = Array.from(
+          signedBlock.block.extrinsics.entries(),
+        );
+
+        for (const [index, extrinsic] of extrinsicsArray) {
+          if (extrinsic.hash.toHex() === txHash) {
+            console.log(`Transaction found in block ${header.number}`);
+
+            const transactionEvent = (allEvents as unknown as Array<any>)?.find(
+              ({ phase, event }) =>
+                phase.isApplyExtrinsic &&
+                phase.asApplyExtrinsic.eq(index) &&
+                (api.events?.system?.ExtrinsicFailed?.is(event) ||
+                  api.events?.system?.ExtrinsicSuccess?.is(event)),
+            );
+
+            unsubscribe();
+
+            if (!transactionEvent) {
+              reject(new Error("Transaction event not found"));
+              return;
+            }
+
+            const { event } = transactionEvent;
+
+            if (api.events?.system?.ExtrinsicFailed?.is(event)) {
+              const [dispatchError] = event.data;
+              let errorInfo: string;
+
+              if ((dispatchError as any)?.isModule) {
+                const decoded = api.registry.findMetaError(
+                  (dispatchError as any).asModule,
+                );
+                errorInfo = `${decoded.section}.${decoded.name}`;
+              } else {
+                errorInfo = dispatchError?.toString() ?? "Unknown error";
+              }
+
+              reject(new Error(`Transaction failed: ${errorInfo}`));
+            } else {
+              resolve({
+                blockHash: blockHash.toHex() as Hex,
+                txIndex: index,
+                blockNumber: header.number.toNumber(),
+              });
+            }
+            return;
+          }
+        }
+      });
+    },
+  );
+
+  return Promise.race([statusPromise, timeoutPromise]);
 }
 
 //LOW LEVEL UTILS

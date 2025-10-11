@@ -11,9 +11,10 @@ const BRIDGE_API_URL = process.env.BRIDGE_API_URL!;
 const ETH_PROVIDER_URL = process.env.ETH_PROVIDER_URL!;
 const WALLET_SIGNER_KEY_ETH = process.env.WALLET_SIGNER_KEY_ETH!;
 
-const BLOCK_NUMBER = parseInt(process.env.BLOCK_NUMBER!);
-const TX_INDEX = parseInt(process.env.TX_INDEX!);
-const FINALIZED_BLOCK = process.env.FINALIZED_BLOCK!;
+const BLOCK_NUMBER = 2413422;
+const TX_INDEX = 1;
+const FINALIZED_BLOCK =
+  "0x351168cf58896a2a43210b640627dd241df7a26d6095384e57e560101a08a71b";
 
 export const UPDATED_NTT_TOKENS = {
   Base: {
@@ -116,42 +117,57 @@ async function attemptReceiveAvail(
       console.log(
         `🔄 Attempting to receive AVAIL (Attempt ${attempts + 1}/${MAX_RECEIVE_ATTEMPTS})...`,
       );
-      const receipt = await contractInstance.receiveAVAIL(
+      const typeTokenTransfer = "0x02";
+
+      const tokenPayload = encodeAbiParameters(
         [
-          "0x02", // token transfer type
-          proof.message.from,
-          proof.message.to,
-          proof.message.originDomain,
-          proof.message.destinationDomain,
-          encodeAbiParameters(
-            [
-              {
-                name: "assetId",
-                type: "bytes32",
-              },
-              {
-                name: "amount",
-                type: "uint256",
-              },
-            ],
-            [
-              proof.message.message.fungibleToken.asset_id,
-              BigInt(proof.message.message.fungibleToken.amount),
-            ],
-          ),
-          proof.message.id,
+          { name: "assetId", type: "bytes32" },
+          { name: "amount", type: "uint256" },
         ],
         [
-          proof.dataRootProof,
-          proof.leafProof,
-          proof.rangeHash,
-          proof.dataRootIndex,
-          proof.blobRoot,
-          proof.bridgeRoot,
-          proof.leaf,
-          proof.leafIndex,
+          proof.message.message.fungibleToken.asset_id,
+          BigInt(proof.message.message.fungibleToken.amount),
         ],
       );
+
+      const msgArgs = [
+        typeTokenTransfer,
+        proof.message.from,
+        proof.message.to,
+        proof.message.originDomain,
+        proof.message.destinationDomain,
+        tokenPayload,
+        proof.message.id,
+      ];
+
+      const proofArgs = [
+        proof.dataRootProof,
+        proof.leafProof,
+        proof.rangeHash,
+        proof.dataRootIndex,
+        proof.blobRoot,
+        proof.bridgeRoot,
+        proof.leaf,
+        proof.leafIndex,
+      ];
+
+      let gasLimit;
+      try {
+        gasLimit = await contractInstance.estimateGas.receiveAVAIL(
+          msgArgs,
+          proofArgs,
+        );
+        gasLimit = gasLimit.mul(115).div(100);
+      } catch (error) {
+        console.log(
+          "⚠️  Gas estimation failed, using a higher default gas limit.",
+        );
+        gasLimit = ethers.BigNumber.from(1000000);
+      }
+
+      const receipt = await contractInstance.receiveAVAIL(msgArgs, proofArgs, {
+        gasLimit,
+      });
 
       const received = await receipt.wait();
       const network = process.env.CONFIG === "Mainnet" ? "" : "sepolia.";
