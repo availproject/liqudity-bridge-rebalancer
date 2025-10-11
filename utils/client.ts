@@ -3,24 +3,25 @@ import { createPublicClient, createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { baseSepolia, mainnet, sepolia } from "viem/chains";
 
-//base this out of config - turing / mainnet
+//read based clients
 export const publicClient = createPublicClient({
-  chain: mainnet,
-  transport: http(),
-});
-
-export const evmAccount = privateKeyToAccount(
-  process.env.WALLET_SIGNER_KEY_ETH! as `0x${string}`,
-);
-
-export const walletClient = createWalletClient({
-  account: evmAccount, // Include account here
-  chain: sepolia,
+  chain: process.env.CONFIG === "Mainnet" ? mainnet : sepolia,
   transport: http(),
 });
 
 export const baseClient = createPublicClient({
-  chain: baseSepolia,
+  chain: process.env.CONFIG === "Mainnet" ? mainnet : baseSepolia,
+  transport: http(),
+});
+
+//write based clients
+export const evmAccount = privateKeyToAccount(
+  process.env.ETH_POOL_SEED! as `0x${string}`,
+);
+
+export const walletClient = createWalletClient({
+  account: evmAccount, // Include account here
+  chain: process.env.CONFIG === "Mainnet" ? mainnet : sepolia,
   transport: http(),
 });
 

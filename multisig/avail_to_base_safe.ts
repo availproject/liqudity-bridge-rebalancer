@@ -8,7 +8,7 @@ import {
 } from "viem";
 import { Wormhole } from "@wormhole-foundation/sdk";
 import evm from "@wormhole-foundation/sdk/platforms/evm";
-import { getSigner } from "../utils/signer";
+import { getSigner } from "../utils/wormhole";
 import "@wormhole-foundation/sdk-evm-ntt";
 import { bridgeContractAbi } from "../utils/abi";
 import { SafeTransactionDataPartial } from "@safe-global/safe-core-sdk-types";
@@ -16,7 +16,7 @@ import { SafeTransactionDataPartial } from "@safe-global/safe-core-sdk-types";
 import jsonbigint from "json-bigint";
 const JSONBigInt = jsonbigint({ useNativeBigInt: true });
 
-const BRIDGE_ADDRESS = process.env.NEXT_PUBLIC_BRIDGE_PROXY_ETH!;
+const BRIDGE_ADDRESS = process.env.BRIDGE_PROXY_ETH!;
 const BRIDGE_API_URL = process.env.BRIDGE_API_URL!;
 const ETH_PROVIDER_URL = process.env.ETH_PROVIDER_URL!;
 const WALLET_SIGNER_KEY_ETH = process.env.WALLET_SIGNER_KEY_ETH!;
@@ -27,17 +27,17 @@ const FINALIZED_BLOCK = process.env.FINALIZED_BLOCK!;
 
 export const UPDATED_NTT_TOKENS = {
   Base: {
-    token: process.env.NEXT_PUBLIC_AVAIL_TOKEN_BASE!,
-    manager: process.env.NEXT_PUBLIC_MANAGER_ADDRESS_BASE!,
+    token: process.env.AVAIL_TOKEN_BASE!,
+    manager: process.env.MANAGER_ADDRESS_BASE!,
     transceiver: {
-      wormhole: process.env.NEXT_PUBLIC_WORMHOLE_TRANSCEIVER_BASE!,
+      wormhole: process.env.WORMHOLE_TRANSCEIVER_BASE!,
     },
   },
   Ethereum: {
-    token: process.env.NEXT_PUBLIC_AVAIL_TOKEN_ETH!,
-    manager: process.env.NEXT_PUBLIC_MANAGER_ADDRESS_ETH!,
+    token: process.env.AVAIL_TOKEN_ETH!,
+    manager: process.env.MANAGER_ADDRESS_ETH!,
     transceiver: {
-      wormhole: process.env.NEXT_PUBLIC_WORMHOLE_TRANSCEIVER_ETH!,
+      wormhole: process.env.WORMHOLE_TRANSCEIVER_ETH!,
     },
   },
 };
@@ -84,7 +84,7 @@ interface TransactionData {
 
 function validateEnvVars() {
   const requiredEnvVars = [
-    "NEXT_PUBLIC_BRIDGE_PROXY_ETH",
+    "BRIDGE_PROXY_ETH",
     "BRIDGE_API_URL",
     "ETH_PROVIDER_URL",
     "WALLET_SIGNER_KEY_ETH",
@@ -94,12 +94,12 @@ function validateEnvVars() {
     "CONFIG",
     "SRC_CHAIN",
     "DST_CHAIN",
-    "NEXT_PUBLIC_AVAIL_TOKEN_BASE",
-    "NEXT_PUBLIC_MANAGER_ADDRESS_BASE",
-    "NEXT_PUBLIC_WORMHOLE_TRANSCEIVER_BASE",
-    "NEXT_PUBLIC_AVAIL_TOKEN_ETH",
-    "NEXT_PUBLIC_MANAGER_ADDRESS_ETH",
-    "NEXT_PUBLIC_WORMHOLE_TRANSCEIVER_ETH",
+    "AVAIL_TOKEN_BASE",
+    "MANAGER_ADDRESS_BASE",
+    "WORMHOLE_TRANSCEIVER_BASE",
+    "AVAIL_TOKEN_ETH",
+    "MANAGER_ADDRESS_ETH",
+    "WORMHOLE_TRANSCEIVER_ETH",
   ];
 
   const missingVars = requiredEnvVars.filter(

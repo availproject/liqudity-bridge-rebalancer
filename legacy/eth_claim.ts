@@ -6,7 +6,7 @@ import { formatUnits, parseUnits } from "viem";
 import jsonbigint from "json-bigint";
 const JSONBigInt = jsonbigint({ useNativeBigInt: true });
 
-const BRIDGE_ADDRESS = process.env.NEXT_PUBLIC_BRIDGE_PROXY_ETH!;
+const BRIDGE_ADDRESS = process.env.BRIDGE_PROXY_ETH!;
 const BRIDGE_API_URL = process.env.BRIDGE_API_URL!;
 const ETH_PROVIDER_URL = process.env.ETH_PROVIDER_URL!;
 const WALLET_SIGNER_KEY_ETH = process.env.WALLET_SIGNER_KEY_ETH!;
@@ -18,17 +18,17 @@ const FINALIZED_BLOCK =
 
 export const UPDATED_NTT_TOKENS = {
   Base: {
-    token: process.env.NEXT_PUBLIC_AVAIL_TOKEN_BASE!,
-    manager: process.env.NEXT_PUBLIC_MANAGER_ADDRESS_BASE!,
+    token: process.env.AVAIL_TOKEN_BASE!,
+    manager: process.env.MANAGER_ADDRESS_BASE!,
     transceiver: {
-      wormhole: process.env.NEXT_PUBLIC_WORMHOLE_TRANSCEIVER_BASE!,
+      wormhole: process.env.WORMHOLE_TRANSCEIVER_BASE!,
     },
   },
   Ethereum: {
-    token: process.env.NEXT_PUBLIC_AVAIL_TOKEN_ETH!,
-    manager: process.env.NEXT_PUBLIC_MANAGER_ADDRESS_ETH!,
+    token: process.env.AVAIL_TOKEN_ETH!,
+    manager: process.env.MANAGER_ADDRESS_ETH!,
     transceiver: {
-      wormhole: process.env.NEXT_PUBLIC_WORMHOLE_TRANSCEIVER_ETH!,
+      wormhole: process.env.WORMHOLE_TRANSCEIVER_ETH!,
     },
   },
 };
@@ -72,7 +72,7 @@ const provider = new ethers.providers.JsonRpcProvider(ETH_PROVIDER_URL);
 
 function validateEnvVars() {
   const requiredEnvVars = [
-    "NEXT_PUBLIC_BRIDGE_PROXY_ETH",
+    "BRIDGE_PROXY_ETH",
     "BRIDGE_API_URL",
     "ETH_PROVIDER_URL",
     "WALLET_SIGNER_KEY_ETH",

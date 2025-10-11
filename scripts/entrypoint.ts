@@ -1,19 +1,12 @@
 import { initialize, TURING_ENDPOINT } from "avail-js-sdk";
-import { Keyring } from "@polkadot/api";
 import { getTokenBalance, validateEnvVars } from "../utils/helpers";
 import { availAccount, publicClient } from "../utils/client";
-import { AVAIL_TO_BASE } from "./avail_to_base";
 import { BigNumber } from "bignumber.js";
 import { BASE_TO_AVAIL } from "./base_to_avail";
 
-async function main() {
-  // validateEnvVars();
+export async function entrypoint() {
+  validateEnvVars();
   console.log("⏳ Running script for", process.env.CONFIG);
-
-  /*
- 1. issues to spec out -
-    a. previous script context to know that one side of the bridging is already running and should be - elysia cron could be helpful, pick it up by steps through a sqlite db
-  */
 
   /*
   0. initial env checks + plus check if the last run in still in process then only run this again.
@@ -31,18 +24,16 @@ try to get this deployed in the same container space with the same env access, t
   */
 
   //base this out of config
-  const api = await initialize(TURING_ENDPOINT);
+  const api = await initialize(process.env.AVAIL_RPC);
   const THRESHOLD = new BigNumber(100000);
-  const GAS_THRESHOLD = new BigNumber(1000000);
-  const AMOUNT_TO_BRIDGE = "10000000000000";
+  const GAS_THRESHOLD = new BigNumber(10000);
+  const AMOUNT_TO_BRIDGE = "10000000000000"; //atomic amount
 
-  //initial checks
   const poolBalances = await getTokenBalance(
     api,
     publicClient,
     availAccount.address,
   );
-  //TODO: add env vars check here
 
   if (GAS_THRESHOLD > poolBalances.gasOnEvm) {
     throw new Error(
@@ -53,15 +44,13 @@ try to get this deployed in the same container space with the same env access, t
   switch (true) {
     case THRESHOLD > poolBalances.evmPoolBalance:
       console.log("uh oh we need to get some funds to base");
-      await AVAIL_TO_BASE(api, availAccount, AMOUNT_TO_BRIDGE);
+      await BASE_TO_AVAIL(availAccount, api, AMOUNT_TO_BRIDGE);
 
     case THRESHOLD > poolBalances.availPoolBalance:
       console.log("uh oh we need to get some funds to avail");
       await BASE_TO_AVAIL(availAccount, api, AMOUNT_TO_BRIDGE);
   }
 }
-
-main().catch(console.error);
 
 /*
 impl choices-

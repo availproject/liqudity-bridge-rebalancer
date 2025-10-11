@@ -37,18 +37,14 @@ export async function BASE_TO_AVAIL(
   api: ApiPromise,
   amount: string,
 ) {
-  const sendToEth = await initiateWormholeBridge(
-    baseClient as PublicClient,
-    "Base",
-    "Ethereum",
-  );
+  await initiateWormholeBridge(baseClient as PublicClient, "Base", "Ethereum");
 
   await new Promise((resolve) => {
     setTimeout(resolve, 1000 * 60 * 20);
   });
 
   const evmPoolBalance = await publicClient.readContract({
-    address: process.env.NEXT_PUBLIC_AVAIL_TOKEN_ETH as Hex,
+    address: process.env.AVAIL_TOKEN_ETH as Hex,
     abi: availTokenAbi,
     functionName: "balanceOf",
     args: [process.env.ETH_POOL_ADDRESS as Hex],

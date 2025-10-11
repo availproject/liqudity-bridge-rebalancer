@@ -2,30 +2,64 @@ import {
   TransactionId,
   Wormhole,
   signSendWait,
+  Chain,
+  ChainAddress,
+  ChainContext,
+  Network,
+  Signer,
+  chainToPlatform,
 } from "@wormhole-foundation/sdk";
 import evm from "@wormhole-foundation/sdk/platforms/evm";
 import "@wormhole-foundation/sdk-evm-ntt";
-import { getSigner } from "./signer";
 import { formatUnits, Hex, parseUnits, PublicClient } from "viem";
 import { balanceOfAbi } from "./abi";
 import { TxnReturnType } from "./types";
 
 export const UPDATED_NTT_TOKENS = {
   Base: {
-    token: process.env.NEXT_PUBLIC_AVAIL_TOKEN_BASE!,
-    manager: process.env.NEXT_PUBLIC_MANAGER_ADDRESS_BASE!,
+    token: process.env.AVAIL_TOKEN_BASE!,
+    manager: process.env.MANAGER_ADDRESS_BASE!,
     transceiver: {
-      wormhole: process.env.NEXT_PUBLIC_WORMHOLE_TRANSCEIVER_BASE!,
+      wormhole: process.env.WORMHOLE_TRANSCEIVER_BASE!,
     },
   },
   Ethereum: {
-    token: process.env.NEXT_PUBLIC_AVAIL_TOKEN_ETH!,
-    manager: process.env.NEXT_PUBLIC_MANAGER_ADDRESS_ETH!,
+    token: process.env.AVAIL_TOKEN_ETH!,
+    manager: process.env.MANAGER_ADDRESS_ETH!,
     transceiver: {
-      wormhole: process.env.NEXT_PUBLIC_WORMHOLE_TRANSCEIVER_ETH!,
+      wormhole: process.env.WORMHOLE_TRANSCEIVER_ETH!,
     },
   },
 };
+
+export interface SignerStuff<N extends Network, C extends Chain> {
+  chain: ChainContext<N, C>;
+  signer: Signer<N, C>;
+  address: ChainAddress<C>;
+}
+
+export async function getSigner<N extends Network, C extends Chain>(
+  chain: ChainContext<N, C>,
+): Promise<SignerStuff<N, C>> {
+  let signer: Signer;
+  const platform = chainToPlatform(chain.chain);
+  switch (platform) {
+    case "Evm":
+      signer = await evm.getSigner(
+        await chain.getRpc(),
+        process.env.ETH_POOL_SEED!,
+      );
+      break;
+    default:
+      throw new Error("Unrecognized platform: " + platform);
+  }
+
+  return {
+    chain,
+    signer: signer as Signer<N, C>,
+    address: Wormhole.chainAddress(chain.chain, signer.address()),
+  };
+}
 
 export async function initiateWormholeBridge(
   publicClient: PublicClient,

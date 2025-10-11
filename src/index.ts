@@ -1,7 +1,39 @@
 import { Elysia } from "elysia";
+import { cron } from "@elysiajs/cron";
+import { entrypoint } from "../scripts/entrypoint";
 
-const app = new Elysia().get("/", () => "Hello Elysia").listen(3000);
-
-console.log(
-  `🦊 Rebalancer scripts running at ${app.server?.hostname}:${app.server?.port}`
-);
+new Elysia()
+  .use(
+    cron({
+      name: "rebalancer",
+      pattern: "*/10 * * * * *",
+      async run() {
+        await entrypoint();
+      },
+      catch(e) {
+        console.error(e);
+      },
+    }),
+  )
+  .get(
+    "/stop",
+    ({
+      store: {
+        cron: { rebalancer },
+      },
+    }) => {
+      rebalancer.stop();
+      return "stop rebalancer script";
+    },
+  )
+  .get(
+    "/status",
+    ({
+      store: {
+        cron: { rebalancer },
+      },
+    }) => {
+      return "return the status of a current running cron";
+    },
+  )
+  .listen(3000);

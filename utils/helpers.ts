@@ -2,7 +2,6 @@ import {
   ApiPromise,
   Keyring,
   KeyringPair,
-  SDK,
   SubmittableResult,
 } from "avail-js-sdk";
 import {
@@ -16,7 +15,6 @@ import {
   TransactionStatus,
   MessageSentEventArgs,
   AccountAndStorageProof,
-  ChainState,
 } from "./types";
 import { BigNumber } from "bignumber.js";
 import { publicClient, walletClient } from "./client";
@@ -34,6 +32,7 @@ import jsonbigint from "json-bigint";
 
 const JSONBigInt = jsonbigint({ useNativeBigInt: true });
 
+//api / rpc based get helpers
 export const getMerkleProof = async (blockhash: string, index: number) => {
   const response = await axios.get(
     `${process.env.bridgeApiBaseUrl}/eth/proof/${blockhash}`,
@@ -62,49 +61,6 @@ export async function getAccountStorageProofs(
   return result;
 }
 
-export function validateEnvVars() {
-  const requiredEnvVars = [
-    "NEXT_PUBLIC_BRIDGE_PROXY_ETH",
-    "BRIDGE_API_URL",
-    "ETH_PROVIDER_URL",
-    "WALLET_SIGNER_KEY_ETH",
-    "BLOCK_NUMBER",
-    "TX_INDEX",
-    "FINALIZED_BLOCK",
-    "CONFIG",
-    "SRC_CHAIN",
-    "DST_CHAIN",
-    "NEXT_PUBLIC_AVAIL_TOKEN_BASE",
-    "NEXT_PUBLIC_MANAGER_ADDRESS_BASE",
-    "NEXT_PUBLIC_WORMHOLE_TRANSCEIVER_BASE",
-    "NEXT_PUBLIC_AVAIL_TOKEN_ETH",
-    "NEXT_PUBLIC_MANAGER_ADDRESS_ETH",
-    "NEXT_PUBLIC_WORMHOLE_TRANSCEIVER_ETH",
-  ];
-
-  const missingVars = requiredEnvVars.filter(
-    (varName) => !process.env[varName],
-  );
-
-  if (missingVars.length > 0) {
-    console.error("❌ Missing required environment variables:");
-    missingVars.forEach((varName) => console.error(`  - ${varName}`));
-    process.exit(1);
-  }
-
-  if (isNaN(parseInt(process.env.BLOCK_NUMBER!))) {
-    console.error("❌ BLOCK_NUMBER must be a valid number");
-    process.exit(1);
-  }
-
-  if (isNaN(parseInt(process.env.TX_INDEX!))) {
-    console.error("❌ TX_INDEX must be a valid number");
-    process.exit(1);
-  }
-
-  console.log("✅ All required environment variables are set");
-}
-
 export async function getTokenBalance(
   api: ApiPromise,
   chainClient: PublicClient = publicClient,
@@ -122,7 +78,7 @@ export async function getTokenBalance(
   const spendableBalance = freeBalance.minus(frozenBalance);
 
   const evmPoolBalance = await chainClient.readContract({
-    address: process.env.NEXT_PUBLIC_AVAIL_TOKEN_ETH as Hex,
+    address: process.env.AVAIL_TOKEN_ETH as Hex,
     abi: availTokenAbi,
     functionName: "balanceOf",
     args: [evmAddress ?? (process.env.ETH_POOL_ADDRESS as Hex)],
@@ -145,6 +101,7 @@ export async function getTokenBalance(
   };
 }
 
+//extrinsic / contract based write helpers
 export async function sendMessage(
   account: KeyringPair,
   api: ApiPromise,
@@ -409,6 +366,40 @@ export async function checkTransactionStatus(
 }
 
 //LOW LEVEL UTILS
+export function validateEnvVars() {
+  const requiredEnvVars = [
+    "BRIDGE_API_URL",
+    "CONFIG",
+    //avail token & bridging contracts based addys
+    "BRIDGE_PROXY_ETH",
+    "AVAIL_TOKEN_BASE",
+    "MANAGER_ADDRESS_BASE",
+    "WORMHOLE_TRANSCEIVER_BASE",
+    "AVAIL_TOKEN_ETH",
+    "MANAGER_ADDRESS_ETH",
+    "WORMHOLE_TRANSCEIVER_ETH",
+    //pool addys
+    "AVAIL_POOL_ADDRESS",
+    "AVAIL_POOL_SEED",
+    "ETH_POOL_ADDRESS",
+    "ETH_POOL_SEED",
+    //rpcs
+    "ETH_RPC_URL",
+    "AVAIL_RPC",
+  ];
+
+  const missingVars = requiredEnvVars.filter(
+    (varName) => !process.env[varName],
+  );
+
+  if (missingVars.length > 0) {
+    console.error("❌ Missing required environment variables:");
+    missingVars.forEach((varName) => console.error(`  - ${varName}`));
+    process.exit(1);
+  }
+  console.log("✅ All required environment variables are set");
+}
+
 export const stringToByte32 = (str: Hex) => {
   return keccak256(str);
 };
