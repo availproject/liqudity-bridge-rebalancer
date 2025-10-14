@@ -1,11 +1,13 @@
 import {
   checkTransactionStatus,
   contractReceiveAvail,
+  getExplorerURLs,
   getMerkleProof,
   sendMessage,
 } from "../utils/helpers";
 import {
   HeadResponse,
+  IChain,
   SendMessageTypedData,
   TxnReturnType,
 } from "../utils/types";
@@ -46,7 +48,10 @@ export async function AVAIL_TO_BASE(
     try {
       burnOnAvail = await sendMessage(account, api, data);
       if (!burnOnAvail.status.isFinalized) throw new Error("Not finalized");
-      console.log("✅ Transaction included in block:", burnOnAvail.txHash);
+      console.log(
+        "✅ Transaction included in block:",
+        getExplorerURLs(IChain.AVAIL, burnOnAvail.txHash, "Txn"),
+      );
       break;
     } catch (error) {
       if (i === 2) throw error;
@@ -61,7 +66,10 @@ export async function AVAIL_TO_BASE(
     6000000,
   );
 
-  console.log("✅ Transaction included in block:", getBlockData.blockHash);
+  console.log(
+    "✅ Transaction included in block:",
+    getExplorerURLs(IChain.AVAIL, getBlockData.blockHash, "Block"),
+  );
   console.log("✅ Transaction index:", getBlockData.txIndex);
 
   console.log("checking commitments on ethereum for claim");
@@ -91,10 +99,9 @@ export async function AVAIL_TO_BASE(
             if (result.status !== "success")
               throw new Error("Transaction failed");
 
-            const network = process.env.CONFIG === "Mainnet" ? "" : "sepolia.";
             console.log(`✅ AVAIL received`);
             console.log(
-              `🔗 View on Etherscan: https://${network}etherscan.io/tx/${result.txHash}`,
+              `🔗 View on Etherscan: ${getExplorerURLs(IChain.ETH, result.txHash, "Txn")}`,
             );
 
             lastTransactionHash = result.txHash as Hex;

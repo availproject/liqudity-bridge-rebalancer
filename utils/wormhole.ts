@@ -16,14 +16,14 @@ import { balanceOfAbi } from "./abi";
 import { TxnReturnType } from "./types";
 
 export const UPDATED_NTT_TOKENS = {
-  Base: {
+  [process.env.BASE_NETWORK!]: {
     token: process.env.AVAIL_TOKEN_BASE!,
     manager: process.env.MANAGER_ADDRESS_BASE!,
     transceiver: {
       wormhole: process.env.WORMHOLE_TRANSCEIVER_BASE!,
     },
   },
-  Ethereum: {
+  [process.env.ETH_NETWORK!]: {
     token: process.env.AVAIL_TOKEN_ETH!,
     manager: process.env.MANAGER_ADDRESS_ETH!,
     transceiver: {
@@ -69,9 +69,24 @@ export async function initiateWormholeBridge(
   const wh = new Wormhole(
     process.env.CONFIG! as "Mainnet" | "Testnet" | "Devnet",
     [evm.Platform],
+    {
+      chains: {
+        [process.env.BASE_NETWORK!]: {
+          rpc: process.env.BASE_RPC_URL,
+        },
+        [process.env.ETH_NETWORK!]: {
+          rpc: process.env.ETH_RPC_URL,
+        },
+      },
+    },
   );
-  const src = wh.getChain(srcChain as "Ethereum" | "Base");
-  const dst = wh.getChain(dstChain as "Ethereum" | "Base");
+
+  const src = wh.getChain(
+    srcChain as "BaseSepolia" | "Sepolia" | "Base" | "Ethereum",
+  );
+  const dst = wh.getChain(
+    dstChain as "BaseSepolia" | "Sepolia" | "Base" | "Ethereum",
+  );
 
   const srcSigner = await getSigner(src);
   const dstSigner = await getSigner(dst);
@@ -108,17 +123,22 @@ export async function initiateWormholeBridge(
       }
 
       console.log("🔄 Initiating bridge to Base...");
-      const _txids: TransactionId[] = await signSendWait(
-        src,
+
+      const xfer = () =>
         srcNtt.transfer(srcSigner.address.address, balance, dstSigner.address, {
           queue: false,
           automatic: true,
-          gasDropoff: 0n,
-        }),
+        });
+
+      const _txids: TransactionId[] = await signSendWait(
+        src,
+        xfer(),
         srcSigner.signer,
       );
       txnIds = _txids;
+      break;
     } catch (e: any) {
+      console.log("TRY NO", i + 1, "failed due to --", e.message);
       if (i === 2)
         throw new Error(
           `retries exhausted while sending wormhole txn ${e.message}`,
@@ -129,7 +149,7 @@ export async function initiateWormholeBridge(
 
   console.log("✅ Bridge transaction initiated");
   console.log(
-    `🔗 View on wormholescan: https://wormholescan.io/#/tx/${txnIds[1]?.txid ?? txnIds[0].txid}?network=Mainnet`,
+    `🔗 View on wormholescan: https://wormholescan.io/#/tx/${txnIds[1]?.txid ?? txnIds[0].txid}?network=Testnet`,
   );
 
   if (!txnIds) {

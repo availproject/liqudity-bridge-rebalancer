@@ -378,6 +378,9 @@ export function validateEnvVars() {
     "AVAIL_TOKEN_ETH",
     "MANAGER_ADDRESS_ETH",
     "WORMHOLE_TRANSCEIVER_ETH",
+    //seperate out testnet / mainnet tokens for wormhole sdk
+    "BASE_NETWORK",
+    "ETH_NETWORK",
     //pool addys
     "AVAIL_POOL_ADDRESS",
     "AVAIL_POOL_SEED",
@@ -386,6 +389,8 @@ export function validateEnvVars() {
     //rpcs
     "ETH_RPC_URL",
     "AVAIL_RPC",
+    //notifier
+    "SLACK_BOT_TOKEN",
   ];
 
   const missingVars = requiredEnvVars.filter(
@@ -398,6 +403,34 @@ export function validateEnvVars() {
     process.exit(1);
   }
   console.log("✅ All required environment variables are set");
+}
+
+export function getExplorerURLs(
+  chain: IChain,
+  Hash: string,
+  Type: "Block" | "Txn",
+): string {
+  const isTestnet = process.env.config === "Testnet";
+
+  switch (chain) {
+    case IChain.AVAIL:
+      return isTestnet
+        ? `https://avail-turing.subscan.io/${Type === "Block" ? "block" : "extrinsic"}/${Hash}`
+        : `https://avail.subscan.io/${Type === "Block" ? "block" : "extrinsic"}/${Hash}`;
+
+    case IChain.ETH:
+      return isTestnet
+        ? `https://sepolia.etherscan.io/${Type === "Block" ? "block" : "tx"}/${Hash}`
+        : `https://etherscan.io/${Type === "Block" ? "block" : "tx"}/${Hash}`;
+
+    case IChain.BASE:
+      return isTestnet
+        ? `https://sepolia.basescan.org/${Type === "Block" ? "block" : "tx"}/${Hash}`
+        : `https://basescan.org/${Type === "Block" ? "block" : "tx"}/${Hash}`;
+
+    default:
+      throw new Error(`Unsupported chain: ${chain}`);
+  }
 }
 
 export const stringToByte32 = (str: Hex) => {

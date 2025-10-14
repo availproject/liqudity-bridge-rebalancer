@@ -5,7 +5,6 @@ import {
   contractAvailSend,
   executeMessage,
   getAccountStorageProofs,
-  getTokenBalance,
 } from "../utils/helpers";
 import { availTokenAbi } from "../utils/abi";
 import { BigNumber } from "bignumber.js";
@@ -142,8 +141,6 @@ export async function BASE_TO_AVAIL(
             await new Promise((r) => setTimeout(r, 1000 * 2 ** i));
           }
         }
-
-        //explorer link here and do get token balance to verify it all
       }
 
       await new Promise((f) => setTimeout(f, 60 * 1000));

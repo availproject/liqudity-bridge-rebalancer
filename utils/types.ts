@@ -1,5 +1,16 @@
 import { Hex } from "viem";
 
+export type LogType = "error" | "warn" | "info";
+
+export const TYPE_META: Record<
+  LogType,
+  { prefix: string; emoji: string; buttonStyle: "primary" | "danger" }
+> = {
+  error: { prefix: "ERROR", emoji: "❌", buttonStyle: "danger" },
+  warn: { prefix: "WARNING", emoji: "⚠️", buttonStyle: "danger" },
+  info: { prefix: "INFO", emoji: "✅", buttonStyle: "primary" },
+};
+
 export interface ProofData {
   dataRootProof: Array<string>;
   leafProof: string;

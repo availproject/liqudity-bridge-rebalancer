@@ -11,7 +11,7 @@ export const publicClient = createPublicClient({
 
 export const baseClient = createPublicClient({
   chain: process.env.CONFIG === "Mainnet" ? mainnet : baseSepolia,
-  transport: http(),
+  transport: http(process.env.BASE_RPC_URL),
 });
 
 //write based clients
@@ -22,7 +22,7 @@ export const evmAccount = privateKeyToAccount(
 export const walletClient = createWalletClient({
   account: evmAccount, // Include account here
   chain: process.env.CONFIG === "Mainnet" ? mainnet : sepolia,
-  transport: http(),
+  transport: http(process.env.ETH_RPC_URL),
 });
 
 export const availAccount = new Keyring({ type: "sr25519" }).addFromUri(
