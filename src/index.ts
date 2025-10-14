@@ -1,6 +1,7 @@
 import { Elysia } from "elysia";
 import { cron } from "@elysiajs/cron";
 import { entrypoint } from "../scripts/entrypoint";
+import { getJobHistory, getLastJobStatus } from "../utils/db";
 
 new Elysia()
   .use(
@@ -11,6 +12,7 @@ new Elysia()
         await entrypoint();
       },
       catch(e) {
+        //this is mostly used for debugging right now, ideally entrypoint takes care of
         console.error(e);
       },
     }),
@@ -23,17 +25,56 @@ new Elysia()
       },
     }) => {
       rebalancer.stop();
-      return "stop rebalancer script";
+      return "stopped rebalancer script";
     },
   )
   .get(
-    "/status",
+    "/pause",
     ({
       store: {
         cron: { rebalancer },
       },
     }) => {
-      return "return the status of a current running cron";
+      rebalancer.pause();
+      return "paused rebalancer script";
     },
   )
+  .get(
+    "/resume",
+    ({
+      store: {
+        cron: { rebalancer },
+      },
+    }) => {
+      rebalancer.resume();
+      return "resumed rebalancer script";
+    },
+  )
+  .get("/status", () => {
+    const lastJob = getLastJobStatus();
+
+    if (!lastJob) {
+      return {
+        status: "no_jobs",
+        message: "No jobs have been run yet",
+      };
+    }
+
+    return {
+      status: lastJob.status,
+      started_at: lastJob.started_at,
+      finished_at: lastJob.finished_at,
+      error: lastJob.error,
+      is_running: lastJob.status === "running",
+    };
+  })
+  .get("/history", ({ query }) => {
+    const limit = query.limit ? parseInt(query.limit) : 10;
+    const history = getJobHistory(limit);
+
+    return {
+      total: history.length,
+      jobs: history,
+    };
+  })
   .listen(3000);

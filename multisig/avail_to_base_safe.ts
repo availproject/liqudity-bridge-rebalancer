@@ -213,7 +213,6 @@ async function generateSafeTransaction(
     {
       queue: false,
       automatic: true,
-      gasDropoff: 0n,
     },
   );
 

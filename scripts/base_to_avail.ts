@@ -36,7 +36,11 @@ export async function BASE_TO_AVAIL(
   api: ApiPromise,
   amount: string,
 ) {
-  await initiateWormholeBridge(baseClient as PublicClient, "Base", "Ethereum");
+  await initiateWormholeBridge(
+    baseClient as PublicClient,
+    process.env.BASE_NETWORK!,
+    process.env.ETH_NETWORK!,
+  );
 
   await new Promise((resolve) => {
     setTimeout(resolve, 1000 * 60 * 20);
@@ -62,88 +66,98 @@ export async function BASE_TO_AVAIL(
     atomicAmount: amount,
   };
 
-  let availSendReturn!: TxnReturnType;
-  for (let i = 0; i > 3; i++) {
+  let availSendReturn: TxnReturnType | undefined;
+  for (let i = 0; i < 3; i++) {
     try {
-      const sendToAvail = await contractAvailSend(
+      availSendReturn = await contractAvailSend(
         walletClient,
         sendToAvailParams,
       );
-      availSendReturn === sendToAvail;
       break;
     } catch (e: any) {
-      if (i === 2)
+      if (i === 2) {
         throw new Error(
           `max no of retries reached while calling contract sendAvail ${e.message}`,
         );
+      }
+      await new Promise((r) => setTimeout(r, 1000 * 2 ** i)); // ✅ Added exponential backoff
     }
+  }
+
+  if (!availSendReturn) {
+    throw new Error("Failed to send to Avail after retries");
   }
 
   await new Promise((resolve) => {
     setTimeout(resolve, 1000 * 60 * 60);
   });
 
+  const MAX_POLLING_TIME = 3 * 60 * 60 * 1000;
+  const startTime = Date.now();
+
   while (true) {
-    try {
-      let txSendBlockNumber: number = Number(process.env.BLOCK_NUMBER);
+    if (Date.now() - startTime > MAX_POLLING_TIME) {
+      throw new Error(
+        "Polling timeout: transaction not finalized after 3 hours",
+      );
+    }
 
-      let getHeadRsp = await fetch(BRIDGE_API_URL + "/eth/head");
-      if (!getHeadRsp.ok) throw new Error("Failed to fetch chain head");
-      let headRsp = (await getHeadRsp.json()) as HeadResponse;
-      let slot: number = headRsp.slot;
+    const txSendBlockNumber: number = Number(process.env.BLOCK_NUMBER);
 
-      let slotMappingRsp = await fetch(BRIDGE_API_URL + "/beacon/slot/" + slot);
-      if (!slotMappingRsp.ok)
-        throw new Error("Failed to fetch latest slot from beacon endpoint");
-      let mappingResponse =
-        (await slotMappingRsp.json()) as SlotMappingResponse;
+    const getHeadRsp = await fetch(BRIDGE_API_URL + "/eth/head");
+    if (!getHeadRsp.ok) throw new Error("Failed to fetch chain head");
+    const headRsp = (await getHeadRsp.json()) as HeadResponse;
+    const slot: number = headRsp.slot;
 
-      //we'll check now if the latest commitment is updated on ethereum
-      if (txSendBlockNumber < mappingResponse.blockNumber) {
-        const proofs = await getAccountStorageProofs(
-          mappingResponse.blockHash,
-          Number(availSendReturn.event?.messageId),
-        );
+    const slotMappingRsp = await fetch(BRIDGE_API_URL + "/beacon/slot/" + slot);
+    if (!slotMappingRsp.ok)
+      throw new Error("Failed to fetch latest slot from beacon endpoint");
+    const mappingResponse =
+      (await slotMappingRsp.json()) as SlotMappingResponse;
 
-        const availClaimData: ExecuteMessageTypedData = {
-          accountProof: proofs.accountProof,
-          storageProof: proofs.storageProof,
-          slot,
-          addrMessage: {
-            message: {
-              FungibleToken: {
-                assetId: ASSET_ID,
-                amount,
-              },
+    if (txSendBlockNumber < mappingResponse.blockNumber) {
+      const proofs = await getAccountStorageProofs(
+        mappingResponse.blockHash,
+        Number(availSendReturn.event?.messageId),
+      );
+
+      const availClaimData: ExecuteMessageTypedData = {
+        accountProof: proofs.accountProof,
+        storageProof: proofs.storageProof,
+        slot,
+        addrMessage: {
+          message: {
+            FungibleToken: {
+              assetId: ASSET_ID,
+              amount,
             },
-            from: process.env.ETH_POOL_ADDRESS!.padEnd(66, "0"),
-            to: u8aToHex(decodeAddress(process.env.AVAIL_POOL_ADDRESS)),
-            originDomain: 2,
-            destinationDomain: 1,
-            id: Number(availSendReturn.event?.messageId),
           },
-        };
+          from: process.env.ETH_POOL_ADDRESS!.padEnd(66, "0"),
+          to: u8aToHex(decodeAddress(process.env.AVAIL_POOL_ADDRESS)),
+          originDomain: 2,
+          destinationDomain: 1,
+          id: Number(availSendReturn.event?.messageId),
+        },
+      };
 
-        let mintOnAvail!: TxnReturnType<SubmittableResult["status"]>;
+      let mintOnAvail: TxnReturnType<SubmittableResult["status"]> | undefined;
 
-        for (let i = 0; i < 3; i++) {
-          try {
-            mintOnAvail = await executeMessage(account, api, availClaimData);
-            if (!mintOnAvail.status.isFinalized)
-              throw new Error("Not finalized");
-            console.log(
-              "✅ Transaction included in block:",
-              mintOnAvail.txHash,
-            );
-            break;
-          } catch (error) {
-            if (i === 2) throw error;
-            await new Promise((r) => setTimeout(r, 1000 * 2 ** i));
-          }
+      for (let i = 0; i < 3; i++) {
+        try {
+          mintOnAvail = await executeMessage(account, api, availClaimData);
+          if (!mintOnAvail.status.isFinalized) throw new Error("Not finalized");
+          console.log("✅ Transaction included in block:", mintOnAvail.txHash);
+          break;
+        } catch (error) {
+          if (i === 2) throw error;
+          await new Promise((r) => setTimeout(r, 1000 * 2 ** i));
         }
       }
 
-      await new Promise((f) => setTimeout(f, 60 * 1000));
-    } catch (e) {}
+      console.log("✅ Claim successful, exiting polling loop.");
+      break;
+    }
+
+    await new Promise((f) => setTimeout(f, 60 * 1000));
   }
 }

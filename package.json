@@ -4,7 +4,7 @@
   "description": "Bridge rebalancer for Avail to Base",
   "main": "scripts/avail_to_base.ts",
   "scripts": {
-    "start": "bun run scripts/avail_to_base.ts",
+    "start": "bun run src/index.ts",
     "base-to-avail": "bun run scripts/base_to_avail.ts"
   },
   "dependencies": {
@@ -15,10 +15,12 @@
     "@safe-global/protocol-kit": "^6.0.3",
     "@safe-global/safe-core-sdk-types": "^5.1.0",
     "@slack/web-api": "^7.11.0",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/json-bigint": "^1.0.4",
     "@wormhole-foundation/sdk": "3.8.5",
     "@wormhole-foundation/sdk-route-ntt": "3.0.2",
     "avail-js-sdk": "^0.4.2",
+    "better-sqlite3": "^12.4.1",
     "bignumber.js": "^9.3.0",
     "elysia": "^1.4.10",
     "ethers": "^5.7.2",

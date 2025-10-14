@@ -18,14 +18,21 @@ import { initiateWormholeBridge } from "../utils/wormhole";
 import { Hex } from "viem";
 
 const JSONBigInt = jsonbigint({ useNativeBigInt: true });
-
 const BRIDGE_API_URL = process.env.BRIDGE_API_URL!;
+
 export const ASSET_ID =
   "0x0000000000000000000000000000000000000000000000000000000000000000";
 
-let hasReceivedAvail = false;
-let lastTransactionHash: Hex;
+/*
+1. start with initiate vector.sendMessage()
+2. track txn receipt using the new api
+3. every 10 minutes run while loop for proof fetching & try to claim
+  a. if claimable, claim and then track till finalisation
+4. when money reaches ethereum, initate a approval + transfer txn through the wormhole sdk to the base
+5. fetch VAA, until the txn is reaches base
+6. spill to a db
 
+*/
 export async function AVAIL_TO_BASE(
   api: ApiPromise,
   account: KeyringPair,
@@ -42,7 +49,7 @@ export async function AVAIL_TO_BASE(
     to: process.env.ETH_HOT_WALLET_ADDY!,
   };
 
-  let burnOnAvail!: TxnReturnType<SubmittableResult["status"]>;
+  let burnOnAvail: TxnReturnType<SubmittableResult["status"]> | undefined;
 
   for (let i = 0; i < 3; i++) {
     try {
@@ -59,6 +66,10 @@ export async function AVAIL_TO_BASE(
     }
   }
 
+  if (!burnOnAvail) {
+    throw new Error("Failed to send message on Avail");
+  }
+
   const getBlockData = await checkTransactionStatus(
     api,
     burnOnAvail.txHash,
@@ -71,70 +82,64 @@ export async function AVAIL_TO_BASE(
     getExplorerURLs(IChain.AVAIL, getBlockData.blockHash, "Block"),
   );
   console.log("✅ Transaction index:", getBlockData.txIndex);
-
   console.log("checking commitments on ethereum for claim");
+
+  let hasReceivedAvail = false;
+  let lastTransactionHash: Hex | undefined;
+
   while (true) {
-    try {
-      const headRsp = await fetch(BRIDGE_API_URL + "/avl/head");
-      if (!headRsp.ok) throw new Error("Failed to fetch chain head");
+    const headRsp = await fetch(BRIDGE_API_URL + "/avl/head");
+    if (!headRsp.ok) throw new Error("Failed to fetch chain head");
+    const head = (await headRsp.json()) as HeadResponse;
+    const lastCommittedBlock = head.data.end;
 
-      const head = (await headRsp.json()) as HeadResponse;
-      const lastCommittedBlock = head.data.end;
+    if (!hasReceivedAvail && lastCommittedBlock >= getBlockData.blockNumber) {
+      const proof = await getMerkleProof(
+        getBlockData.blockHash,
+        getBlockData.txIndex,
+      );
+      console.log("✅ Proof fetched successfully");
 
-      if (!hasReceivedAvail && lastCommittedBlock >= getBlockData.blockNumber) {
-        const proof = await getMerkleProof(
-          getBlockData.blockHash,
-          getBlockData.txIndex,
-        );
-        console.log("✅ Proof fetched successfully");
-
-        for (let i = 0; i < 30; i++) {
-          try {
-            const result = await contractReceiveAvail(
-              walletClient,
-              publicClient,
-              proof,
-            );
-
-            if (result.status !== "success")
-              throw new Error("Transaction failed");
-
-            console.log(`✅ AVAIL received`);
-            console.log(
-              `🔗 View on Etherscan: ${getExplorerURLs(IChain.ETH, result.txHash, "Txn")}`,
-            );
-
-            lastTransactionHash = result.txHash as Hex;
-            hasReceivedAvail = true;
-            break;
-          } catch (error) {
-            if (i === 29) throw new Error("Failed to claim after 30 attempts");
-            console.log(`❌ Claim attempt ${i + 1}/30 failed, retrying...`);
-            await new Promise((r) => setTimeout(r, 10 * 60 * 1000));
-          }
+      for (let i = 0; i < 30; i++) {
+        try {
+          const result = await contractReceiveAvail(
+            walletClient,
+            publicClient,
+            proof,
+          );
+          if (result.status !== "success")
+            throw new Error("Transaction failed");
+          console.log(`✅ AVAIL received`);
+          console.log(
+            `🔗 View on Etherscan: ${getExplorerURLs(IChain.ETH, result.txHash, "Txn")}`,
+          );
+          lastTransactionHash = result.txHash as Hex;
+          hasReceivedAvail = true;
+          break;
+        } catch (error) {
+          if (i === 29) throw new Error("Failed to claim after 30 attempts");
+          console.log(`❌ Claim attempt ${i + 1}/30 failed, retrying...`);
+          await new Promise((r) => setTimeout(r, 10 * 60 * 1000));
         }
       }
-
-      if (hasReceivedAvail) {
-        const wormholeTxnIds = await initiateWormholeBridge(
-          publicClient,
-          "Ethereum",
-          "Base",
-        );
-
-        console.log(
-          "✅ bridged to wormhole successfully, flow done",
-          wormholeTxnIds,
-        );
-      }
-
-      console.log(
-        `⏳ Waiting for bridge commitment on ethereum (${lastCommittedBlock}/${getBlockData.blockNumber})...`,
-      );
-      await new Promise((r) => setTimeout(r, 60 * 1000));
-    } catch (error) {
-      console.error("❌ Error:", error);
-      process.exit(1);
     }
+
+    if (hasReceivedAvail) {
+      const wormholeTxnIds = await initiateWormholeBridge(
+        publicClient,
+        process.env.ETH_NETWORK!,
+        process.env.BASE_NETWORK!,
+      );
+      console.log(
+        "✅ bridged to wormhole successfully, flow done",
+        wormholeTxnIds,
+      );
+      break;
+    }
+
+    console.log(
+      `⏳ Waiting for bridge commitment on ethereum (${lastCommittedBlock}/${getBlockData.blockNumber})...`,
+    );
+    await new Promise((r) => setTimeout(r, 60 * 1000));
   }
 }

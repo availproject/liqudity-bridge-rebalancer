@@ -26,13 +26,17 @@ export async function sendDmToUser(userId: string, text: string) {
   }
 }
 
-export async function sendNotificationChannel(
-  channelId: string,
-  title: string,
-  details: string,
-  link?: string,
-  type: LogType = "info",
-) {
+export async function sendNotificationChannel({
+  title,
+  details,
+  link,
+  type,
+}: {
+  title: string;
+  details: string;
+  link?: string;
+  type: LogType;
+}) {
   const meta = TYPE_META[type] ?? TYPE_META.info;
 
   const blocks = [
@@ -65,7 +69,7 @@ export async function sendNotificationChannel(
 
   try {
     const res = await slack.chat.postMessage({
-      channel: channelId,
+      channel: "C08LDH03FSA",
       text: textFallback,
       blocks,
     });
