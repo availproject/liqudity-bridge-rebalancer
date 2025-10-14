@@ -1,8 +1,17 @@
-import Database from "better-sqlite3";
-import path from "path";
+import { Database } from "bun:sqlite";
 
-const dbPath = path.join(__dirname, "../db.sqlite");
-const db = new Database(dbPath);
+const db = new Database("rebalancer.sqlite");
+db.prepare(
+  `
+  CREATE TABLE IF NOT EXISTS job_status (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    status TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    finished_at TEXT,
+    error TEXT
+  )
+`,
+).run();
 
 interface JobStatusRow {
   id: number;

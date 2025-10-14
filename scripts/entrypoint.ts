@@ -10,11 +10,6 @@ export async function entrypoint() {
   validateEnvVars();
   console.log("⏳ Running script for", process.env.CONFIG);
 
-  if (isJobRunning()) {
-    console.log("A previous run is still in progress. Exiting this run.");
-    return;
-  }
-
   try {
     await sendNotificationChannel({
       title: "Job Started",
@@ -22,7 +17,8 @@ export async function entrypoint() {
       type: "info",
     });
   } catch (notifyErr) {
-    console.error("Failed to send start notification!", notifyErr);
+    console.log("Failed to send start notification!", notifyErr);
+    throw notifyErr;
   }
 
   try {

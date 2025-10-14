@@ -1,13 +1,14 @@
 import { Elysia } from "elysia";
-import { cron } from "@elysiajs/cron";
-import { entrypoint } from "../scripts/entrypoint";
+import { cron, Patterns } from "@elysiajs/cron";
 import { getJobHistory, getLastJobStatus } from "../utils/db";
+import { entrypoint } from "../scripts/entrypoint";
 
-new Elysia()
+const app = new Elysia()
   .use(
     cron({
       name: "rebalancer",
-      pattern: "*/10 * * * * *",
+      pattern: Patterns.EVERY_10_SECONDS,
+      protect: true,
       async run() {
         await entrypoint();
       },
@@ -76,5 +77,6 @@ new Elysia()
       total: history.length,
       jobs: history,
     };
-  })
-  .listen(3000);
+  });
+
+app.listen(3000);

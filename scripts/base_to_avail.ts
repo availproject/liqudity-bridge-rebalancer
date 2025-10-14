@@ -89,7 +89,7 @@ export async function BASE_TO_AVAIL(
   }
 
   await new Promise((resolve) => {
-    setTimeout(resolve, 1000 * 60 * 60);
+    setTimeout(resolve, 1000 * 60 * 60); // 1 hour wait before trying to fetch proofs
   });
 
   const MAX_POLLING_TIME = 3 * 60 * 60 * 1000;

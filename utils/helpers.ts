@@ -185,9 +185,9 @@ export async function contractAvailSend(
 ): Promise<TxnReturnType> {
   const pubkey = substrateAddressToPublicKey(data.substrateAddressDestination);
   const send = await writeClient.writeContract({
-    address: process.env.BRIDGE_PROXY_ADDY as Hex,
+    address: process.env.BRIDGE_PROXY_ETH as Hex,
     abi: bridgeContractAbi,
-    functionName: "sendAvail",
+    functionName: "sendAVAIL",
     chain: walletClient.chain,
     account: walletClient.account,
     args: [pubkey, data.atomicAmount],
@@ -200,8 +200,7 @@ export async function contractAvailSend(
 
   for (const log of receipt.logs) {
     if (
-      log.address.toLowerCase() !==
-      process.env.AVAIL_BRIDGE_PROXY_ETH!.toLowerCase()
+      log.address.toLowerCase() !== process.env.BRIDGE_PROXY_ETH!.toLowerCase()
     )
       continue;
 
@@ -236,11 +235,11 @@ export async function contractReceiveAvail(
   merkleProof: ContractReceiveAvailTypedData,
 ): Promise<TxnReturnType> {
   const recieve = await writeClient.writeContract({
-    address: process.env.BRIDGE_PROXY_ADDY as Hex,
+    address: process.env.BRIDGE_PROXY_ETH as Hex,
     abi: bridgeContractAbi,
     chain: walletClient.chain,
     account: walletClient.account,
-    functionName: "ReceiveAvail",
+    functionName: "receiveAVAIL",
     args: [
       [
         "0x02",

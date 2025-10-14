@@ -1,30 +1,5 @@
-import { WebClient, LogLevel } from "@slack/web-api";
-import { LogType, TYPE_META } from "./types";
-
-const slackToken = process.env.SLACK_BOT_TOKEN;
-
-export const slack = new WebClient(slackToken, {
-  logLevel: process.env.CONFIG === "Mainnet" ? LogLevel.ERROR : LogLevel.INFO,
-});
-
-export async function sendDmToUser(userId: string, text: string) {
-  try {
-    const open = await slack.conversations.open({ users: userId });
-    const imChannelId = open.channel?.id;
-    if (!imChannelId) {
-      throw new Error("Failed to open DM channel");
-    }
-
-    const res = await slack.chat.postMessage({
-      channel: imChannelId,
-      text,
-    });
-    return res.ts;
-  } catch (err) {
-    console.error("Slack sendDmToUser error:", err);
-    throw err;
-  }
-}
+import { ActionsBlock, HeaderBlock, SectionBlock } from "@slack/web-api";
+import { LogType, SlackErr, SlackOk, TYPE_META } from "./types";
 
 export async function sendNotificationChannel({
   title,
@@ -37,45 +12,65 @@ export async function sendNotificationChannel({
   link?: string;
   type: LogType;
 }) {
+  const token = process.env.SLACK_BOT_TOKEN;
+  if (!token || !token.startsWith("xoxb-")) {
+    throw new Error(
+      "Missing or invalid SLACK_BOT_TOKEN (must start with xoxb-)",
+    );
+  }
+
   const meta = TYPE_META[type] ?? TYPE_META.info;
 
-  const blocks = [
+  const baseBlocks: [HeaderBlock, SectionBlock] = [
     {
       type: "header",
       text: { type: "plain_text", text: `${meta.emoji} ${title}` },
     },
-    {
-      type: "section",
-      text: { type: "mrkdwn", text: details },
-    },
-    ...(link
-      ? [
-          {
-            type: "actions",
-            elements: [
-              {
-                type: "button",
-                text: { type: "plain_text", text: "View Details" },
-                url: link,
-                style: meta.buttonStyle,
-              },
-            ],
-          },
-        ]
-      : []),
+    { type: "section", text: { type: "mrkdwn", text: details } },
   ];
-
+  const actionBlocks: [ActionsBlock] | [] = link
+    ? [
+        {
+          type: "actions",
+          elements: [
+            {
+              type: "button",
+              text: { type: "plain_text", text: "View Details" },
+              url: link,
+              style: meta.buttonStyle,
+            },
+          ],
+        },
+      ]
+    : [];
+  const blocks = [...baseBlocks, ...actionBlocks];
   const textFallback = `${meta.prefix}: ${title} — ${details}`;
 
-  try {
-    const res = await slack.chat.postMessage({
+  const res = await fetch("https://slack.com/api/chat.postMessage", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json; charset=utf-8",
+    },
+    body: JSON.stringify({
       channel: "C08LDH03FSA",
       text: textFallback,
       blocks,
-    });
-    return res.ts;
-  } catch (err) {
-    console.error("Slack sendNotificationChannel error:", err);
-    throw err;
+    }),
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text().catch(() => "");
+    throw new Error(`Slack HTTP ${res.status}: ${bodyText || res.statusText}`);
   }
+
+  const json = (await res.json()) as SlackOk | SlackErr;
+
+  if (!json.ok) {
+    const needed = json.needed ? ` (needed: ${json.needed})` : "";
+    const provided = json.provided ? ` (provided: ${json.provided})` : "";
+    throw new Error(`Error sending Message: ${json.error}${needed}${provided}`);
+  }
+
+  return json.ts;
 }

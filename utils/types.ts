@@ -2,6 +2,14 @@ import { Hex } from "viem";
 
 export type LogType = "error" | "warn" | "info";
 
+export type SlackOk = { ok: true; ts: string };
+export type SlackErr = {
+  ok: false;
+  error: string;
+  needed?: string;
+  provided?: string;
+};
+
 export const TYPE_META: Record<
   LogType,
   { prefix: string; emoji: string; buttonStyle: "primary" | "danger" }

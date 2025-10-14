@@ -2,7 +2,7 @@
   "name": "liqudity-bridge-rebalancer",
   "version": "1.0.0",
   "description": "Bridge rebalancer for Avail to Base",
-  "main": "scripts/avail_to_base.ts",
+  "main": "src/index.ts",
   "scripts": {
     "start": "bun run src/index.ts",
     "base-to-avail": "bun run scripts/base_to_avail.ts"
