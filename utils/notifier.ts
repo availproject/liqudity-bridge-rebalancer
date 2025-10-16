@@ -53,7 +53,7 @@ export async function sendNotificationChannel({
       "Content-Type": "application/json; charset=utf-8",
     },
     body: JSON.stringify({
-      channel: "C08LDH03FSA",
+      channel: "C09LZ3R9MT3",
       text: textFallback,
       blocks,
     }),

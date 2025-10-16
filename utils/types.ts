@@ -1,6 +1,6 @@
 import { Hex } from "viem";
 
-export type LogType = "error" | "warn" | "info";
+export type LogType = "error" | "warn" | "info" | "success";
 
 export type SlackOk = { ok: true; ts: string };
 export type SlackErr = {
@@ -16,7 +16,8 @@ export const TYPE_META: Record<
 > = {
   error: { prefix: "ERROR", emoji: "❌", buttonStyle: "danger" },
   warn: { prefix: "WARNING", emoji: "⚠️", buttonStyle: "danger" },
-  info: { prefix: "INFO", emoji: "✅", buttonStyle: "primary" },
+  info: { prefix: "INFO", emoji: "🎛️", buttonStyle: "primary" },
+  success: { prefix: "SUCCESS", emoji: "✅", buttonStyle: "primary" },
 };
 
 export interface ProofData {

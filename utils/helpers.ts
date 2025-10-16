@@ -27,23 +27,24 @@ import {
   PublicClient,
   WalletClient,
 } from "viem";
-import axios from "axios";
+
 import jsonbigint from "json-bigint";
 
 const JSONBigInt = jsonbigint({ useNativeBigInt: true });
 
 //api / rpc based get helpers
 export const getMerkleProof = async (blockhash: string, index: number) => {
-  const response = await axios.get(
-    `${process.env.bridgeApiBaseUrl}/eth/proof/${blockhash}`,
-    {
-      params: { index },
-      transformResponse: [(data) => data],
-    },
-  );
-  const proof: ContractReceiveAvailTypedData = JSONBigInt.parse(response.data);
+  const res = await fetch(
+    `${process.env.BRIDGE_API_URL}/eth/proof/${blockhash}?index=${index}`,
+  ).catch(() => Response.error());
 
-  return proof;
+  if (!res || !res.ok) {
+    throw new Error(`Failed to fetch proof: ${res?.status} ${res?.statusText}`);
+  }
+
+  const text = await res.text();
+  const proof = JSONBigInt.parse(text);
+  return proof as ContractReceiveAvailTypedData;
 };
 
 export async function getAccountStorageProofs(
@@ -51,7 +52,7 @@ export async function getAccountStorageProofs(
   messageid: number,
 ) {
   const response = await fetch(
-    `${process.env.bridgeApiBaseUrl}/v1/avl/proof/${blockhash}/${messageid}`,
+    `${process.env.BRIDGE_API_URL}/v1/avl/proof/${blockhash}/${messageid}`,
   ).catch((e) => {
     return Response.error();
   });
@@ -78,26 +79,27 @@ export async function getTokenBalance(
   const spendableBalance = freeBalance.minus(frozenBalance);
 
   const evmPoolBalance = await chainClient.readContract({
-    address: process.env.AVAIL_TOKEN_ETH as Hex,
+    address: process.env.AVAIL_TOKEN_BASE as Hex,
     abi: availTokenAbi,
     functionName: "balanceOf",
-    args: [evmAddress ?? (process.env.ETH_POOL_ADDRESS as Hex)],
+    args: [evmAddress ?? (process.env.EVM_POOL_ADDRESS as Hex)],
   });
 
   const gasCheck = await chainClient.getBalance({
-    address: evmAddress ?? (process.env.ETH_POOL_ADDRESS as Hex),
-  });
-
-  console.log({
-    evm: new BigNumber(evmPoolBalance),
-    avail: spendableBalance,
-    gasOnEvm: new BigNumber(gasCheck),
+    address: evmAddress ?? (process.env.EVM_POOL_ADDRESS as Hex),
   });
 
   return {
     evmPoolBalance: new BigNumber(evmPoolBalance),
     gasOnEvm: new BigNumber(gasCheck),
     availPoolBalance: spendableBalance,
+    humanFormatted: {
+      evmPoolBalance: new BigNumber(evmPoolBalance)
+        .dividedBy(10 ** 18)
+        .toFixed(4),
+      gasOnEvm: new BigNumber(gasCheck).dividedBy(10 ** 18).toFixed(4),
+      availPoolBalance: spendableBalance.dividedBy(10 ** 18).toFixed(4),
+    },
   };
 }
 
@@ -383,8 +385,8 @@ export function validateEnvVars() {
     //pool addys
     "AVAIL_POOL_ADDRESS",
     "AVAIL_POOL_SEED",
-    "ETH_POOL_ADDRESS",
-    "ETH_POOL_SEED",
+    "EVM_POOL_ADDRESS",
+    "EVM_POOL_SEED",
     //rpcs
     "ETH_RPC_URL",
     "AVAIL_RPC",
@@ -409,7 +411,7 @@ export function getExplorerURLs(
   Hash: string,
   Type: "Block" | "Txn",
 ): string {
-  const isTestnet = process.env.config === "Testnet";
+  const isTestnet = process.env.CONFIG === "Testnet";
 
   switch (chain) {
     case IChain.AVAIL:

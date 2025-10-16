@@ -50,7 +50,7 @@ export async function BASE_TO_AVAIL(
     address: process.env.AVAIL_TOKEN_ETH as Hex,
     abi: availTokenAbi,
     functionName: "balanceOf",
-    args: [process.env.ETH_POOL_ADDRESS as Hex],
+    args: [process.env.EVM_POOL_ADDRESS as Hex],
   });
 
   if (
@@ -132,7 +132,7 @@ export async function BASE_TO_AVAIL(
               amount,
             },
           },
-          from: process.env.ETH_POOL_ADDRESS!.padEnd(66, "0"),
+          from: process.env.EVM_POOL_ADDRESS!.padEnd(66, "0"),
           to: u8aToHex(decodeAddress(process.env.AVAIL_POOL_ADDRESS)),
           originDomain: 2,
           destinationDomain: 1,

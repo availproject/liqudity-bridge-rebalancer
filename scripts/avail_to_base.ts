@@ -23,7 +23,7 @@ const BRIDGE_API_URL = process.env.BRIDGE_API_URL!;
 export const ASSET_ID =
   "0x0000000000000000000000000000000000000000000000000000000000000000";
 
-/*
+/**
 1. start with initiate vector.sendMessage()
 2. track txn receipt using the new api
 3. every 10 minutes run while loop for proof fetching & try to claim
@@ -31,7 +31,6 @@ export const ASSET_ID =
 4. when money reaches ethereum, initate a approval + transfer txn through the wormhole sdk to the base
 5. fetch VAA, until the txn is reaches base
 6. spill to a db
-
 */
 export async function AVAIL_TO_BASE(
   api: ApiPromise,
@@ -46,7 +45,7 @@ export async function AVAIL_TO_BASE(
         assetId: ASSET_ID,
       },
     },
-    to: process.env.ETH_HOT_WALLET_ADDY!,
+    to: process.env.EVM_POOL_ADDRESS!.padEnd(66, "0"),
   };
 
   let burnOnAvail: TxnReturnType<SubmittableResult["status"]> | undefined;
@@ -56,7 +55,7 @@ export async function AVAIL_TO_BASE(
       burnOnAvail = await sendMessage(account, api, data);
       if (!burnOnAvail.status.isFinalized) throw new Error("Not finalized");
       console.log(
-        "✅ Transaction included in block:",
+        "✅ Transaction Hash",
         getExplorerURLs(IChain.AVAIL, burnOnAvail.txHash, "Txn"),
       );
       break;
@@ -134,6 +133,7 @@ export async function AVAIL_TO_BASE(
         "✅ bridged to wormhole successfully, flow done",
         wormholeTxnIds,
       );
+
       break;
     }
 

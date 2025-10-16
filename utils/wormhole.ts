@@ -47,7 +47,7 @@ export async function getSigner<N extends Network, C extends Chain>(
     case "Evm":
       signer = await evm.getSigner(
         await chain.getRpc(),
-        process.env.ETH_POOL_SEED!,
+        process.env.EVM_POOL_SEED!,
       );
       break;
     default:

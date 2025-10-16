@@ -1,37 +1,31 @@
 import { initialize } from "avail-js-sdk";
 import { getTokenBalance, validateEnvVars } from "../utils/helpers";
-import { availAccount, publicClient } from "../utils/client";
+import { availAccount, baseClient } from "../utils/client";
 import { BigNumber } from "bignumber.js";
 import { BASE_TO_AVAIL } from "./base_to_avail";
 import { isJobRunning, markJobStarted, markJobCompleted } from "../utils/db";
 import { sendNotificationChannel } from "../utils/notifier";
+import { PublicClient } from "viem";
+import { AVAIL_TO_BASE } from "./avail_to_base";
 
 export async function entrypoint() {
   validateEnvVars();
   console.log("⏳ Running script for", process.env.CONFIG);
 
   try {
-    await sendNotificationChannel({
-      title: "Job Started",
-      details: `The rebalancer job has started at ${new Date().toISOString()}.`,
-      type: "info",
-    });
-  } catch (notifyErr) {
-    console.log("Failed to send start notification!", notifyErr);
-    throw notifyErr;
-  }
-
-  try {
     markJobStarted();
 
     const api = await initialize(process.env.AVAIL_RPC);
-    const THRESHOLD = new BigNumber(100000);
-    const GAS_THRESHOLD = new BigNumber(10000);
-    const AMOUNT_TO_BRIDGE = "10000000000000"; // atomic amount
+    const THRESHOLD = new BigNumber(100000000000000);
+    const GAS_THRESHOLD = new BigNumber(process.env.GAS_THRESHOLD!);
+    const AMOUNT_TO_BRIDGE = process.env.AMOUNT_TO_BRIDGE!;
+    const AMOUNT_TO_BRIDGE_FORMATTED = new BigNumber(AMOUNT_TO_BRIDGE)
+      .dividedBy(10 ** 18)
+      .toFixed(4);
 
     const poolBalances = await getTokenBalance(
       api,
-      publicClient,
+      baseClient as PublicClient,
       availAccount.address,
     );
 
@@ -43,13 +37,37 @@ export async function entrypoint() {
 
     switch (true) {
       case THRESHOLD.gt(poolBalances.evmPoolBalance):
-        console.log("Funds to base needed");
-        await BASE_TO_AVAIL(availAccount, api, AMOUNT_TO_BRIDGE);
+        await sendNotificationChannel({
+          title: "AVAIL TO BASE REBALANCING JOB STARTING",
+          details: `*Job Started:* ${new Date().toLocaleDateString()}
+    *Reason:* Funds are low on BASE
+
+    *Current Balances:*
+    - AVAIL: ${poolBalances.humanFormatted.availPoolBalance} tokens
+    - BASE: ${poolBalances.humanFormatted.evmPoolBalance} tokens
+
+    *Action:* Bridging ${AMOUNT_TO_BRIDGE_FORMATTED} tokens from AVAIL to BASE`,
+          type: "info",
+        });
+        await AVAIL_TO_BASE(api, availAccount, AMOUNT_TO_BRIDGE);
         break;
+
       case THRESHOLD.gt(poolBalances.availPoolBalance):
-        console.log("Funds to avail needed");
+        await sendNotificationChannel({
+          title: "BASE TO AVAIL REBALANCING JOB STARTING",
+          details: `*Job Started:* ${new Date().toLocaleDateString()}
+    *Reason:* Funds are low on AVAIL
+
+    *Current Balances:*
+    - AVAIL: ${poolBalances.humanFormatted.availPoolBalance} tokens
+    - BASE: ${poolBalances.humanFormatted.evmPoolBalance} tokens
+
+    *Action:* Bridging ${AMOUNT_TO_BRIDGE_FORMATTED} tokens from BASE to AVAIL`,
+          type: "info",
+        });
         await BASE_TO_AVAIL(availAccount, api, AMOUNT_TO_BRIDGE);
         break;
+
       default:
         console.log("Balances are sufficient. No bridging required.");
     }
@@ -57,9 +75,8 @@ export async function entrypoint() {
     //ideally wait for those wormhole txns as well and return this object {initiateTxn, claimTxn, TimeTaken}
     await sendNotificationChannel({
       title: "Job Completed Successfully ",
-      details:
-        "The rebalancer job finished at ${new Date().toISOString()}. ${bridgingResult",
-      type: "info",
+      details: `The rebalancer job finished at ${new Date().toISOString()}. `,
+      type: "success",
     });
   } catch (error: any) {
     console.error("Error in job", error);

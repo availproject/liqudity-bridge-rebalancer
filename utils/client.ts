@@ -16,7 +16,7 @@ export const baseClient = createPublicClient({
 
 //write based clients
 export const evmAccount = privateKeyToAccount(
-  process.env.ETH_POOL_SEED! as `0x${string}`,
+  process.env.EVM_POOL_SEED! as `0x${string}`,
 );
 
 export const walletClient = createWalletClient({
