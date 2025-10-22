@@ -33,7 +33,7 @@ import jsonbigint from "json-bigint";
 const JSONBigInt = jsonbigint({ useNativeBigInt: true });
 
 //api / rpc based get helpers
-export const getMerkleProof = async (blockhash: string, index: number) => {
+export async function getMerkleProof(blockhash: string, index: number) {
   const res = await fetch(
     `${process.env.BRIDGE_API_URL}/eth/proof/${blockhash}?index=${index}`,
   ).catch(() => Response.error());
@@ -45,7 +45,7 @@ export const getMerkleProof = async (blockhash: string, index: number) => {
   const text = await res.text();
   const proof = JSONBigInt.parse(text);
   return proof as ContractReceiveAvailTypedData;
-};
+}
 
 export async function getAccountStorageProofs(
   blockhash: string,

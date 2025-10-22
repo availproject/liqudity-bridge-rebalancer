@@ -5,13 +5,16 @@ import {
   contractAvailSend,
   executeMessage,
   getAccountStorageProofs,
+  getExplorerURLs,
 } from "../utils/helpers";
 import { availTokenAbi } from "../utils/abi";
 import { BigNumber } from "bignumber.js";
 import {
+  BridgingResult,
   ContractAvailSendTypedData,
   ExecuteMessageTypedData,
   HeadResponse,
+  IChain,
   TxnReturnType,
 } from "../utils/types";
 import { SlotMappingResponse } from "../legacy/avail_claim";
@@ -35,13 +38,15 @@ export async function BASE_TO_AVAIL(
   account: KeyringPair,
   api: ApiPromise,
   amount: string,
-) {
-  await initiateWormholeBridge(
+): Promise<BridgingResult> {
+  const initiateHash = await initiateWormholeBridge(
     baseClient as PublicClient,
     process.env.BASE_NETWORK!,
     process.env.ETH_NETWORK!,
+    BigInt(amount),
   );
 
+  //remove this - rather wait for vaa confirmation, (once you have the right manager confirmations)
   await new Promise((resolve) => {
     setTimeout(resolve, 1000 * 60 * 20);
   });
@@ -140,7 +145,7 @@ export async function BASE_TO_AVAIL(
         },
       };
 
-      let mintOnAvail: TxnReturnType<SubmittableResult["status"]> | undefined;
+      let mintOnAvail!: TxnReturnType<SubmittableResult["status"]>;
 
       for (let i = 0; i < 3; i++) {
         try {
@@ -155,7 +160,18 @@ export async function BASE_TO_AVAIL(
       }
 
       console.log("✅ Claim successful, exiting polling loop.");
-      break;
+      return {
+        initiateExplorerLink: getExplorerURLs(
+          IChain.BASE,
+          initiateHash.txHash,
+          "Txn",
+        ),
+        destinationExplorerLink: getExplorerURLs(
+          IChain.AVAIL,
+          mintOnAvail.txHash,
+          "Txn",
+        ),
+      };
     }
 
     await new Promise((f) => setTimeout(f, 60 * 1000));

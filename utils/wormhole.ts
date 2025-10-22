@@ -13,7 +13,7 @@ import evm from "@wormhole-foundation/sdk/platforms/evm";
 import "@wormhole-foundation/sdk-evm-ntt";
 import { formatUnits, Hex, parseUnits, PublicClient } from "viem";
 import { balanceOfAbi } from "./abi";
-import { TxnReturnType } from "./types";
+import { TxnReturnType, WormholeTxnReturnType } from "./types";
 
 export const UPDATED_NTT_TOKENS = {
   [process.env.BASE_NETWORK!]: {
@@ -36,6 +36,41 @@ export interface SignerStuff<N extends Network, C extends Chain> {
   chain: ChainContext<N, C>;
   signer: Signer<N, C>;
   address: ChainAddress<C>;
+}
+
+export async function getTxnStatus(
+  sourceHash: Hex,
+): Promise<WormholeTxnReturnType> {
+  const MAX_DURATION = 30 * 60 * 1000; // 30 minutes
+  const POLL_INTERVAL = 5000; // 5 seconds
+  const startTime = Date.now();
+
+  console.log("starting to poll transaction status");
+  while (Date.now() - startTime < MAX_DURATION) {
+    try {
+      const response = await fetch(
+        `https://api.${process.env.CONFIG === "Mainnet" ? "" : "testnet."}wormholescan.io/api/v1/operations?txHash=${sourceHash}`,
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          `API returned ${response.status} for txn ${sourceHash}`,
+        );
+      }
+
+      const txn = (await response.json()) as WormholeTxnReturnType;
+      if (txn.operations?.[0]?.targetChain?.status === "completed") {
+        return txn;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL));
+    } catch (error) {
+      console.error(`Error polling txn ${sourceHash}:`, error);
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL));
+    }
+  }
+
+  throw new Error(`Transaction ${sourceHash} timed out after 30 minutes`);
 }
 
 export async function getSigner<N extends Network, C extends Chain>(
@@ -65,6 +100,8 @@ export async function initiateWormholeBridge(
   publicClient: PublicClient,
   srcChain: string,
   dstChain: string,
+  //wormhole sdk expects bigint, so we send it as string here to maintain uniformity
+  amount?: bigint,
 ): Promise<TxnReturnType> {
   const wh = new Wormhole(
     process.env.CONFIG! as "Mainnet" | "Testnet" | "Devnet",
@@ -122,13 +159,18 @@ export async function initiateWormholeBridge(
         );
       }
 
-      console.log("🔄 Initiating bridge to Base...");
+      console.log(`🔄 Initiating bridge to ${dstChain}`);
 
       const xfer = () =>
-        srcNtt.transfer(srcSigner.address.address, balance, dstSigner.address, {
-          queue: false,
-          automatic: true,
-        });
+        srcNtt.transfer(
+          srcSigner.address.address,
+          amount ?? balance,
+          dstSigner.address,
+          {
+            queue: false,
+            automatic: true,
+          },
+        );
 
       const _txids: TransactionId[] = await signSendWait(
         src,
@@ -149,15 +191,17 @@ export async function initiateWormholeBridge(
 
   console.log("✅ Bridge transaction initiated");
   console.log(
-    `🔗 View on wormholescan: https://wormholescan.io/#/tx/${txnIds[1]?.txid ?? txnIds[0].txid}?network=Testnet`,
+    `🔗 View on wormholescan: https://wormholescan.io/#/tx/${txnIds[1]?.txid ?? txnIds[0].txid}?network=${process.env.CONFIG}`,
   );
 
   if (!txnIds) {
     throw new Error("No Txn ids available something went wrong here");
   }
 
+  const result = await getTxnStatus((txnIds[1]?.txid ?? txnIds[0].txid) as Hex);
+
   return {
-    txHash: txnIds[1]?.txid ?? txnIds[0].txid,
-    status: "initiated",
+    txHash: result.operations[0].targetChain.transaction.txHash,
+    status: result.operations[0].targetChain.status,
   };
 }

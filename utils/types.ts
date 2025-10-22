@@ -20,6 +20,11 @@ export const TYPE_META: Record<
   success: { prefix: "SUCCESS", emoji: "✅", buttonStyle: "primary" },
 };
 
+export interface BridgingResult {
+  initiateExplorerLink: string;
+  destinationExplorerLink: string;
+}
+
 export interface ProofData {
   dataRootProof: Array<string>;
   leafProof: string;
@@ -180,4 +185,151 @@ export interface ContractReceiveAvailTypedData {
   leafProof: Hex[];
   message: EthMessage;
   rangeHash: string;
+}
+
+//wormhole types for handling txn status
+export interface WormholeTxnReturnType {
+  operations: Operation[];
+}
+
+export interface Root {
+  operations: Operation[];
+}
+
+export interface Operation {
+  id: string;
+  emitterChain: number;
+  emitterAddress: EmitterAddress;
+  sequence: string;
+  vaa: Vaa;
+  content: Content;
+  sourceChain: SourceChain;
+  targetChain: TargetChain;
+  data: Data;
+}
+
+export interface EmitterAddress {
+  hex: string;
+  native: string;
+}
+
+export interface Vaa {
+  raw: string;
+  guardianSetIndex: number;
+  isDuplicated: boolean;
+}
+
+export interface Content {
+  payload: Payload;
+  standarizedProperties: StandarizedProperties;
+  executorRequest: any;
+}
+
+export interface Payload {
+  encodedExecutionInfo: EncodedExecutionInfo;
+  extraReceiverValue: string;
+  messageKeys: any[];
+  parsedPayload: ParsedPayload;
+  payload: string;
+  payloadType: number;
+  refundAddress: string;
+  refundChainId: number;
+  refundDeliveryProvider: string;
+  requestedReceiverValue: string;
+  senderAddress: string;
+  sourceDeliveryProvider: string;
+  targetAddress: string;
+  targetChainId: number;
+}
+
+export interface EncodedExecutionInfo {
+  gasLimit: string;
+  targetChainRefundPerGasUnused: string;
+}
+
+export interface ParsedPayload {
+  nttManagerMessage: NttManagerMessage;
+  nttMessage: NttMessage;
+  transceiverMessage: TransceiverMessage;
+}
+
+export interface NttManagerMessage {
+  id: string;
+  sender: string;
+}
+
+export interface NttMessage {
+  additionalPayload: string;
+  sourceToken: string;
+  to: string;
+  toChain: number;
+  trimmedAmount: TrimmedAmount;
+}
+
+export interface TrimmedAmount {
+  amount: string;
+  decimals: number;
+}
+
+export interface TransceiverMessage {
+  prefix: string;
+  recipientNttManager: string;
+  sourceNttManager: string;
+  transceiverPayload: string;
+}
+
+export interface StandarizedProperties {
+  appIds: string[];
+  fromChain: number;
+  fromAddress: string;
+  toChain: number;
+  toAddress: string;
+  tokenChain: number;
+  tokenAddress: string;
+  amount: string;
+  feeAddress: string;
+  feeChain: number;
+  fee: string;
+  normalizedDecimals: number;
+}
+
+export interface SourceChain {
+  chainId: number;
+  timestamp: string;
+  transaction: Transaction;
+  from: string;
+  status: string;
+  fee: string;
+  gasTokenNotional: string;
+  feeUSD: string;
+}
+
+export interface Transaction {
+  txHash: string;
+}
+
+export interface TargetChain {
+  chainId: number;
+  timestamp: string;
+  transaction: Transaction2;
+  status: string;
+  from: string;
+  to: string;
+  balanceChanges: BalanceChange[];
+}
+
+export interface Transaction2 {
+  txHash: string;
+}
+
+export interface BalanceChange {
+  amount: string;
+  recipient: string;
+  tokenAddress: string;
+}
+
+export interface Data {
+  symbol: string;
+  tokenAmount: string;
+  usdAmount: string;
 }

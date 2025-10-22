@@ -6,6 +6,7 @@ import {
   sendMessage,
 } from "../utils/helpers";
 import {
+  BridgingResult,
   HeadResponse,
   IChain,
   SendMessageTypedData,
@@ -36,7 +37,7 @@ export async function AVAIL_TO_BASE(
   api: ApiPromise,
   account: KeyringPair,
   amount: string,
-) {
+): Promise<BridgingResult> {
   const data: SendMessageTypedData = {
     destinationDomain: 2,
     message: {
@@ -93,14 +94,14 @@ export async function AVAIL_TO_BASE(
     const lastCommittedBlock = head.data.end;
 
     if (!hasReceivedAvail && lastCommittedBlock >= getBlockData.blockNumber) {
-      const proof = await getMerkleProof(
-        getBlockData.blockHash,
-        getBlockData.txIndex,
-      );
-      console.log("✅ Proof fetched successfully");
-
       for (let i = 0; i < 30; i++) {
         try {
+          const proof = await getMerkleProof(
+            getBlockData.blockHash,
+            getBlockData.txIndex,
+          );
+          console.log("✅ Proof fetched successfully");
+
           const result = await contractReceiveAvail(
             walletClient,
             publicClient,
@@ -134,7 +135,18 @@ export async function AVAIL_TO_BASE(
         wormholeTxnIds,
       );
 
-      break;
+      return {
+        initiateExplorerLink: getExplorerURLs(
+          IChain.AVAIL,
+          burnOnAvail.txHash,
+          "Txn",
+        ),
+        destinationExplorerLink: getExplorerURLs(
+          IChain.BASE,
+          wormholeTxnIds.txHash,
+          "Txn",
+        ),
+      };
     }
 
     console.log(

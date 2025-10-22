@@ -7,6 +7,7 @@ import { isJobRunning, markJobStarted, markJobCompleted } from "../utils/db";
 import { sendNotificationChannel } from "../utils/notifier";
 import { PublicClient } from "viem";
 import { AVAIL_TO_BASE } from "./avail_to_base";
+import { BridgingResult } from "../utils/types";
 
 export async function entrypoint() {
   validateEnvVars();
@@ -35,27 +36,12 @@ export async function entrypoint() {
       );
     }
 
+    let bridgingResult!: BridgingResult | string;
     switch (true) {
-      case THRESHOLD.gt(poolBalances.evmPoolBalance):
-        await sendNotificationChannel({
-          title: "AVAIL TO BASE REBALANCING JOB STARTING",
-          details: `*Job Started:* ${new Date().toLocaleDateString()}
-    *Reason:* Funds are low on BASE
-
-    *Current Balances:*
-    - AVAIL: ${poolBalances.humanFormatted.availPoolBalance} tokens
-    - BASE: ${poolBalances.humanFormatted.evmPoolBalance} tokens
-
-    *Action:* Bridging ${AMOUNT_TO_BRIDGE_FORMATTED} tokens from AVAIL to BASE`,
-          type: "info",
-        });
-        await AVAIL_TO_BASE(api, availAccount, AMOUNT_TO_BRIDGE);
-        break;
-
       case THRESHOLD.gt(poolBalances.availPoolBalance):
         await sendNotificationChannel({
           title: "BASE TO AVAIL REBALANCING JOB STARTING",
-          details: `*Job Started:* ${new Date().toLocaleDateString()}
+          details: `*Job Started:* ${new Date().toLocaleString()}
     *Reason:* Funds are low on AVAIL
 
     *Current Balances:*
@@ -65,17 +51,49 @@ export async function entrypoint() {
     *Action:* Bridging ${AMOUNT_TO_BRIDGE_FORMATTED} tokens from BASE to AVAIL`,
           type: "info",
         });
-        await BASE_TO_AVAIL(availAccount, api, AMOUNT_TO_BRIDGE);
+        bridgingResult = await BASE_TO_AVAIL(
+          availAccount,
+          api,
+          AMOUNT_TO_BRIDGE,
+        );
+        break;
+
+      case THRESHOLD.gt(poolBalances.evmPoolBalance):
+        await sendNotificationChannel({
+          title: "AVAIL TO BASE REBALANCING JOB STARTING",
+          details: `*Job Started:* ${new Date().toLocaleString()}
+    *Reason:* Funds are low on BASE
+
+    *Current Balances:*
+    - AVAIL: ${poolBalances.humanFormatted.availPoolBalance} tokens
+    - BASE: ${poolBalances.humanFormatted.evmPoolBalance} tokens
+
+    *Action:* Bridging ${AMOUNT_TO_BRIDGE_FORMATTED} tokens from AVAIL to BASE`,
+          type: "info",
+        });
+        bridgingResult = await AVAIL_TO_BASE(
+          api,
+          availAccount,
+          AMOUNT_TO_BRIDGE,
+        );
         break;
 
       default:
-        console.log("Balances are sufficient. No bridging required.");
+        bridgingResult = "Balances are sufficient. No bridging required.";
     }
 
-    //ideally wait for those wormhole txns as well and return this object {initiateTxn, claimTxn, TimeTaken}
     await sendNotificationChannel({
-      title: "Job Completed Successfully ",
-      details: `The rebalancer job finished at ${new Date().toISOString()}. `,
+      title: "Job Completed Successfully",
+      details: `*Job Finished:* ${new Date().toLocaleString()}
+    *Result:* ${
+      typeof bridgingResult === "string"
+        ? bridgingResult
+        : `Bridging completed successfully
+
+    *Explorer Links:*
+    - Initiate Transaction: ${bridgingResult.initiateExplorerLink}
+    - Destination Transaction: ${bridgingResult.destinationExplorerLink}`
+    }`,
       type: "success",
     });
   } catch (error: any) {
@@ -93,6 +111,7 @@ export async function entrypoint() {
     if (isJobRunning()) {
       markJobCompleted();
     }
+    process.exit(1);
   }
 }
 
