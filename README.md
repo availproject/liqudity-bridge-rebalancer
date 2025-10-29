@@ -307,6 +307,110 @@ Keys are validated using Unkey service. Invalid keys return `401 Unauthorized`.
 
 ---
 
+## Legacy Scripts
+
+The project includes legacy claim scripts for manual bridge operations. These are standalone scripts that can be run locally for specific bridge claim scenarios.
+
+### Available Scripts
+
+#### 1. Avail Claim (`legacy/avail_claim.ts`)
+
+Claims tokens on Avail chain after they've been bridged from Ethereum/Base.
+
+**Required Environment Variables:**
+```bash
+# Avail Configuration
+SURI=<your-substrate-secret-uri>
+BRIDGE_API_URL=<bridge-api-endpoint>
+AVAIL_CLAIM_AMOUNT=<amount-in-wei>
+MESSAGE_ID=<bridge-message-id>
+BLOCK_NUMBER=<source-block-number>
+```
+
+**Usage:**
+```bash
+bun run legacy/avail_claim.ts
+```
+
+**Process Flow:**
+```
+1. Connect to Avail RPC
+2. Poll bridge API for Ethereum head
+3. Wait for block inclusion (SOURCE_BLOCK <= HEAD_BLOCK)
+4. Fetch merkle proof from bridge API
+5. Submit execute transaction with proof
+6. Wait for finalization on Avail
+```
+
+---
+
+#### 2. Ethereum Claim (`legacy/eth_claim.ts`)
+
+Claims tokens on Ethereum/Base after they've been bridged from Avail.
+
+**Required Environment Variables:**
+```bash
+# Ethereum/Base Configuration
+BRIDGE_PROXY_ETH=<bridge-contract-address>
+BRIDGE_API_URL=<bridge-api-endpoint>
+ETH_PROVIDER_URL=<ethereum-rpc-url>
+WALLET_SIGNER_KEY_ETH=<private-key>
+
+# Transaction Details
+BLOCK_NUMBER=<avail-block-number>
+TX_INDEX=<transaction-index>
+FINALIZED_BLOCK=<finalized-block-hash>
+
+# NTT Token Configuration (for Base)
+AVAIL_TOKEN_BASE=<token-address>
+MANAGER_ADDRESS_BASE=<manager-address>
+WORMHOLE_TRANSCEIVER_BASE=<transceiver-address>
+
+# NTT Token Configuration (for Ethereum)
+AVAIL_TOKEN_ETH=<token-address>
+MANAGER_ADDRESS_ETH=<manager-address>
+WORMHOLE_TRANSCEIVER_ETH=<transceiver-address>
+
+# Environment
+CONFIG=<Mainnet|Testnet>
+```
+
+**Usage:**
+```bash
+bun run legacy/eth_claim.ts
+```
+
+**Process Flow:**
+```
+1. Validate all environment variables
+2. Connect to Ethereum/Base RPC
+3. Poll bridge API for Avail head
+4. Wait for block inclusion (SOURCE_BLOCK <= HEAD_BLOCK)
+5. Fetch merkle proof from bridge API
+6. Encode token transfer payload
+7. Estimate gas and submit receiveAVAIL transaction
+8. Retry up to 3 times on failure (5 min intervals)
+9. Wait for 2 confirmations
+10. Verify finalization
+```
+
+**Notes:**
+- Ethereum claim script includes automatic retry logic (3 attempts)
+- Gas estimation with 15% buffer for safety
+- Supports both Mainnet and Testnet configurations
+- Links to Etherscan for transaction verification
+
+---
+
+### When to Use Legacy Scripts
+
+- **Manual Bridge Recovery**: When automated rebalancing fails
+- **One-off Transfers**: For non-standard bridge amounts
+- **Testing**: Verify bridge functionality in isolation
+- **Emergency Operations**: Manual intervention needed
+
+---
+
 ## License
 
 MIT
