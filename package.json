@@ -5,8 +5,7 @@
   "main": "src/index.ts",
   "scripts": {
     "start": "bun run src/index.ts",
-    "start-cron": "bun run src/cron.ts",
-    "base-to-avail": "bun run scripts/base_to_avail.ts"
+    "start-cron": "bun run src/cron.ts"
   },
   "dependencies": {
     "@elysiajs/cron": "^1.4.1",
