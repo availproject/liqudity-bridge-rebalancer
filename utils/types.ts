@@ -123,6 +123,7 @@ export interface TxnReturnType<T = string> {
     from: Hex;
     to: Hex;
     messageId: bigint;
+    blockNumber: bigint;
   };
 }
 

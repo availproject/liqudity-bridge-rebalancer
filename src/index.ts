@@ -1,81 +1,36 @@
-import { Elysia, t } from "elysia";
-import { cron, Patterns } from "@elysiajs/cron";
+import { Elysia, status, t } from "elysia";
 import { getJobHistory, getLastJobStatus } from "../utils/db";
-import { entrypoint } from "../scripts/entrypoint";
+import { Unkey } from "@unkey/api";
 import { initiateWormholeBridge } from "../utils/wormhole";
+import { baseClient, publicClient } from "../utils/client";
+import { PublicClient } from "viem";
 
-const API_KEY =
-  process.env.ADMIN_KEY ??
-  (() => {
-    console.error("Missing ADMIN_KEY env");
-    process.exit(1);
-  })();
+const unkey = new Unkey({
+  rootKey: process.env.UNKEY_ROOT_KEY,
+});
 
 const app = new Elysia()
+  .onError(({ error }) => {
+    return new Response(error.toString());
+  })
   .guard({
     headers: t.Object({ "x-api-key": t.String() }),
   })
-  .onBeforeHandle(({ headers, set }) => {
-    if (headers["x-api-key"] !== API_KEY) {
-      set.status = 401;
-      return "Unauthorized";
+  .onBeforeHandle(async ({ headers, set }) => {
+    const result = await unkey.keys.verifyKey({
+      key: headers["x-api-key"],
+    });
+
+    if (!result.data.valid) {
+      return status(401, `Api Key Verification Failed ${result.data.code}`);
     }
   })
-  .use(
-    cron({
-      name: "rebalancer",
-      pattern: Patterns.EVERY_10_SECONDS,
-      protect: true,
-      async run() {
-        await entrypoint();
-      },
-      catch(e) {
-        //this is mostly used for debugging right now, ideally entrypoint takes care of
-        console.error(e);
-      },
-    }),
-  )
-  .get(
-    "/stop",
-    ({
-      store: {
-        cron: { rebalancer },
-      },
-    }) => {
-      rebalancer.stop();
-      return "stopped rebalancer script";
-    },
-  )
-  .get(
-    "/pause",
-    ({
-      store: {
-        cron: { rebalancer },
-      },
-    }) => {
-      rebalancer.pause();
-      return "paused rebalancer script";
-    },
-  )
-  .get(
-    "/resume",
-    ({
-      store: {
-        cron: { rebalancer },
-      },
-    }) => {
-      rebalancer.resume();
-      return "resumed rebalancer script";
-    },
-  )
+  .get("/", () => "core apis health check ok")
   .get("/status", () => {
     const lastJob = getLastJobStatus();
 
     if (!lastJob) {
-      return {
-        status: "no_jobs",
-        message: "No jobs have been run yet",
-      };
+      return status(204, "no last jobs");
     }
 
     return {
@@ -94,36 +49,55 @@ const app = new Elysia()
       total: history.length,
       jobs: history,
     };
-  });
-// .get("/legacy/eth-claim", ({ query }) => {}, {
-//   query: t.Object({
-//     blockNumber: t.Number(),
-//     txIndex: t.Number(),
-//     finalizedBlock: t.String({
-//       pattern: "^0x[a-fA-F0-9]{64}$",
-//       error: "finalizedBlock must be a 0x-prefixed 64-hex string",
-//     }),
-//   }),
-// })
-// .get("/legacy/avail-claim", ({ query }) => {}, {
-//   query: t.Object({
-//     blockNumber: t.Number(),
-//     messageId: t.Number(),
-//     amount: t.BigInt(),
-//   }),
-// })
-// .get(
-//   "legacy/wormhole-initiate",
-//   ({ query }) => {
-//     const initiateWormholeTxn = initiateWormholeBridge();
-//   },
-//   {
-//     query: t.Object({
-//       sourceChain: t.String(),
-//       destinationChain: t.String(),
-//       amount: t.String(),
-//     }),
-//   },
-// );
+  })
+  .get(
+    "legacy/wormhole-initiate",
+    async ({ query }) => {
+      const client = new Set(["Base", "BaseSepolia"]).has(query.sourceChain)
+        ? baseClient
+        : publicClient;
 
-app.listen(3000);
+      const hashes = await initiateWormholeBridge(
+        client as PublicClient,
+        query.sourceChain,
+        query.destinationChain,
+        BigInt(query.amount),
+        false,
+      );
+
+      return hashes;
+    },
+    {
+      query: t.Object({
+        sourceChain: t.String(),
+        destinationChain: t.String(),
+        amount: t.String(),
+      }),
+    },
+  );
+
+app.listen(3001);
+
+/**
+ *
+ *
+ * extra routes for legacy claims - require some changes to the script
+ *
+ *   // .get("/legacy/eth-claim", ({ query }) => {}, {
+ //   query: t.Object({
+ //     blockNumber: t.Number(),
+ //     txIndex: t.Number(),
+ //     finalizedBlock: t.String({
+ //       pattern: "^0x[a-fA-F0-9]{64}$",
+ //       error: "finalizedBlock must be a 0x-prefixed 64-hex string",
+ //     }),
+ //   }),
+ // })
+ // .get("/legacy/avail-claim", ({ query }) => {}, {
+ //   query: t.Object({
+ //     blockNumber: t.Number(),
+ //     messageId: t.Number(),
+ //     amount: t.BigInt(),
+ //   }),
+ // })
+ */

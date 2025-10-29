@@ -223,6 +223,7 @@ export async function contractAvailSend(
           to,
           messageId,
           logIndex: log.logIndex,
+          blockNumber: receipt.blockNumber,
         },
       };
     }

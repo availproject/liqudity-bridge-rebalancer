@@ -1,16 +1,35 @@
 import { initiateWormholeBridge } from "../utils/wormhole";
-import { baseClient, publicClient, walletClient } from "../utils/client";
+import {
+  availAccount,
+  baseClient,
+  publicClient,
+  walletClient,
+} from "../utils/client";
 import { Hex, PublicClient } from "viem";
 import {
   contractReceiveAvail,
+  executeMessage,
+  getAccountStorageProofs,
   getExplorerURLs,
   getMerkleProof,
 } from "../utils/helpers";
-import { HeadResponse, IChain } from "../utils/types";
+import {
+  ExecuteMessageTypedData,
+  HeadResponse,
+  IChain,
+  TxnReturnType,
+} from "../utils/types";
 import { entrypoint } from "./entrypoint";
 import { AVAIL_TO_BASE } from "./avail_to_base";
-import { initialize } from "avail-js-sdk";
+import { initialize, SubmittableResult } from "avail-js-sdk";
 import { BASE_TO_AVAIL } from "./base_to_avail";
+
+import { ASSET_ID } from "./avail_to_base";
+import { SlotMappingResponse } from "../legacy/avail_claim";
+import { decodeAddress } from "@polkadot/keyring";
+import { u8aToHex } from "@polkadot/util";
+
+const BRIDGE_API_URL = process.env.BRIDGE_API_URL!;
 
 async function main() {
   try {
@@ -93,6 +112,83 @@ async function main() {
     // const a = await AVAIL_TO_BASE(api, "1400000000000000000");
     const a = await BASE_TO_AVAIL(api, "1400000000000000000");
     console.log(a);
+    // while (true) {
+    //   console.log("starting to poll for proofs");
+
+    //   const txSendBlockNumber: number = Number(9511691);
+
+    //   const getHeadRsp = await fetch(BRIDGE_API_URL + "/eth/head");
+    //   if (!getHeadRsp.ok) throw new Error("Failed to fetch chain head");
+    //   const headRsp = (await getHeadRsp.json()) as HeadResponse;
+    //   const slot: number = headRsp.slot;
+
+    //   const slotMappingRsp = await fetch(
+    //     BRIDGE_API_URL + "/beacon/slot/" + slot,
+    //   );
+    //   if (!slotMappingRsp.ok)
+    //     throw new Error("Failed to fetch latest slot from beacon endpoint");
+    //   const mappingResponse =
+    //     (await slotMappingRsp.json()) as SlotMappingResponse;
+
+    //   if (txSendBlockNumber < mappingResponse.blockNumber) {
+    //     const proofs = await getAccountStorageProofs(
+    //       mappingResponse.blockHash,
+    //       Number(31923),
+    //     );
+
+    //     const availClaimData: ExecuteMessageTypedData = {
+    //       accountProof: proofs.accountProof,
+    //       storageProof: proofs.storageProof,
+    //       slot,
+    //       addrMessage: {
+    //         message: {
+    //           FungibleToken: {
+    //             assetId: ASSET_ID,
+    //             amount: "1400000000000000000",
+    //           },
+    //         },
+    //         from: process.env.EVM_POOL_ADDRESS!.padEnd(66, "0"),
+    //         to: u8aToHex(decodeAddress(process.env.AVAIL_POOL_ADDRESS)),
+    //         originDomain: 2,
+    //         destinationDomain: 1,
+    //         id: Number(31923),
+    //       },
+    //     };
+
+    //     let mintOnAvail!: TxnReturnType<SubmittableResult["status"]>;
+
+    //     for (let i = 0; i < 3; i++) {
+    //       try {
+    //         mintOnAvail = await executeMessage(
+    //           availAccount,
+    //           api,
+    //           availClaimData,
+    //         );
+    //         if (!mintOnAvail.status.isFinalized)
+    //           throw new Error("Not finalized");
+    //         console.log(
+    //           "✅ Transaction included in block:",
+    //           mintOnAvail.txHash,
+    //         );
+    //         break;
+    //       } catch (error) {
+    //         if (i === 2) throw error;
+    //         await new Promise((r) => setTimeout(r, 1000 * 2 ** i));
+    //       }
+    //     }
+
+    //     console.log("✅ Claim successful, exiting polling loop.");
+    //     return {
+    //       destinationExplorerLink: getExplorerURLs(
+    //         IChain.AVAIL,
+    //         mintOnAvail.txHash,
+    //         "Txn",
+    //       ),
+    //     };
+    //   }
+
+    //   await new Promise((f) => setTimeout(f, 60 * 1000));
+    // }
   } catch (error) {
     console.error(error);
     process.exit(1);

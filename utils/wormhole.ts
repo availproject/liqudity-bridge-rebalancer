@@ -109,6 +109,7 @@ export async function initiateWormholeBridge(
   dstChain: string,
   //wormhole sdk expects bigint, so we send it as string here to maintain uniformity
   amount?: bigint,
+  track: boolean = true,
 ): Promise<TxnReturnType> {
   const wh = new Wormhole(
     process.env.CONFIG! as "Mainnet" | "Testnet" | "Devnet",
@@ -203,6 +204,13 @@ export async function initiateWormholeBridge(
 
   if (!txnIds) {
     throw new Error("No Txn ids available something went wrong here");
+  }
+
+  if (!track) {
+    return {
+      txHash: txnIds[1]?.txid ?? txnIds[0].txid,
+      status: "initated",
+    };
   }
 
   const result = await getTxnStatus((txnIds[1]?.txid ?? txnIds[0].txid) as Hex);

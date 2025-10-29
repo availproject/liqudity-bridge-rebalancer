@@ -47,7 +47,7 @@ export async function BASE_TO_AVAIL(
     baseClient as PublicClient,
     process.env.BASE_NETWORK!,
     process.env.ETH_NETWORK!,
-    BigInt(10000000000000),
+    BigInt(amount),
   );
 
   console.log("initiate hash on wormhole", initiateHash);
@@ -107,7 +107,9 @@ export async function BASE_TO_AVAIL(
       );
     }
 
-    const txSendBlockNumber: number = Number(process.env.BLOCK_NUMBER);
+    const txSendBlockNumber: number = Number(
+      availSendReturn.event?.blockNumber,
+    );
 
     const getHeadRsp = await fetch(BRIDGE_API_URL + "/eth/head");
     if (!getHeadRsp.ok) throw new Error("Failed to fetch chain head");

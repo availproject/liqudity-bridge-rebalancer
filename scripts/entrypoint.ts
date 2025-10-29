@@ -104,7 +104,6 @@ export async function entrypoint() {
       markJobCompleted();
     }
     disconnect();
-    process.exit(1);
   }
 }
 
