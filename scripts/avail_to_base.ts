@@ -14,7 +14,7 @@ import {
 } from "../utils/types";
 import jsonbigint from "json-bigint";
 import { ApiPromise, KeyringPair, SubmittableResult } from "avail-js-sdk";
-import { publicClient, walletClient } from "../utils/client";
+import { availAccount, publicClient, walletClient } from "../utils/client";
 import { initiateWormholeBridge } from "../utils/wormhole";
 import { Hex } from "viem";
 
@@ -35,7 +35,6 @@ export const ASSET_ID =
 */
 export async function AVAIL_TO_BASE(
   api: ApiPromise,
-  account: KeyringPair,
   amount: string,
 ): Promise<BridgingResult> {
   const data: SendMessageTypedData = {
@@ -53,7 +52,7 @@ export async function AVAIL_TO_BASE(
 
   for (let i = 0; i < 3; i++) {
     try {
-      burnOnAvail = await sendMessage(account, api, data);
+      burnOnAvail = await sendMessage(availAccount, api, data);
       if (!burnOnAvail.status.isFinalized) throw new Error("Not finalized");
       console.log(
         "✅ Transaction Hash",

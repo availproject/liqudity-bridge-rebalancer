@@ -45,7 +45,8 @@ export async function getTxnStatus(
   const POLL_INTERVAL = 5000; // 5 seconds
   const startTime = Date.now();
 
-  console.log("starting to poll transaction status");
+  let counter = 0;
+  console.log("starting to poll transaction status for txn hash", sourceHash);
   while (Date.now() - startTime < MAX_DURATION) {
     try {
       const response = await fetch(
@@ -62,10 +63,15 @@ export async function getTxnStatus(
       if (txn.operations?.[0]?.targetChain?.status === "completed") {
         return txn;
       }
+      console.log(
+        "txn not completed yet, repolling, latest status fetched",
+        counter,
+      );
 
+      counter++;
       await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL));
-    } catch (error) {
-      console.error(`Error polling txn ${sourceHash}:`, error);
+    } catch (error: any) {
+      console.error(`Error polling txn ${sourceHash}: ${error.message}`);
       await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL));
     }
   }
@@ -96,6 +102,7 @@ export async function getSigner<N extends Network, C extends Chain>(
   };
 }
 
+//info: if this fails to work in prod, it is most prolly a dep mismanagement, make sure to use overrides in package.json
 export async function initiateWormholeBridge(
   publicClient: PublicClient,
   srcChain: string,
@@ -201,7 +208,7 @@ export async function initiateWormholeBridge(
   const result = await getTxnStatus((txnIds[1]?.txid ?? txnIds[0].txid) as Hex);
 
   return {
-    txHash: result.operations[0].targetChain.transaction.txHash,
-    status: result.operations[0].targetChain.status,
+    txHash: result.operations[0].targetChain!.transaction.txHash,
+    status: result.operations[0].targetChain!.status,
   };
 }

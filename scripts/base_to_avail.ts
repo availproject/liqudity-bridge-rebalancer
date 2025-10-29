@@ -1,5 +1,10 @@
 import { Hex, PublicClient } from "viem";
-import { baseClient, publicClient, walletClient } from "../utils/client";
+import {
+  availAccount,
+  baseClient,
+  publicClient,
+  walletClient,
+} from "../utils/client";
 import { initiateWormholeBridge } from "../utils/wormhole";
 import {
   contractAvailSend,
@@ -35,7 +40,6 @@ const BRIDGE_API_URL = process.env.BRIDGE_API_URL!;
  *
  */
 export async function BASE_TO_AVAIL(
-  account: KeyringPair,
   api: ApiPromise,
   amount: string,
 ): Promise<BridgingResult> {
@@ -43,14 +47,10 @@ export async function BASE_TO_AVAIL(
     baseClient as PublicClient,
     process.env.BASE_NETWORK!,
     process.env.ETH_NETWORK!,
-    BigInt(amount),
+    BigInt(10000000000000),
   );
 
-  //remove this - rather wait for vaa confirmation, (once you have the right manager confirmations)
-  await new Promise((resolve) => {
-    setTimeout(resolve, 1000 * 60 * 20);
-  });
-
+  console.log("initiate hash on wormhole", initiateHash);
   const evmPoolBalance = await publicClient.readContract({
     address: process.env.AVAIL_TOKEN_ETH as Hex,
     abi: availTokenAbi,
@@ -66,6 +66,7 @@ export async function BASE_TO_AVAIL(
     );
   }
 
+  console.log("initiating bridge from ethereum");
   const sendToAvailParams: ContractAvailSendTypedData = {
     substrateAddressDestination: process.env.AVAIL_POOL_ADDRESS!,
     atomicAmount: amount,
@@ -93,17 +94,16 @@ export async function BASE_TO_AVAIL(
     throw new Error("Failed to send to Avail after retries");
   }
 
-  await new Promise((resolve) => {
-    setTimeout(resolve, 1000 * 60 * 60); // 1 hour wait before trying to fetch proofs
-  });
+  console.log("txn on ethereum", availSendReturn);
 
   const MAX_POLLING_TIME = 3 * 60 * 60 * 1000;
   const startTime = Date.now();
 
   while (true) {
+    console.log("starting to poll for proofs");
     if (Date.now() - startTime > MAX_POLLING_TIME) {
       throw new Error(
-        "Polling timeout: transaction not finalized after 3 hours",
+        "Polling timeout: proofs not available even after 3 hours",
       );
     }
 
@@ -149,7 +149,7 @@ export async function BASE_TO_AVAIL(
 
       for (let i = 0; i < 3; i++) {
         try {
-          mintOnAvail = await executeMessage(account, api, availClaimData);
+          mintOnAvail = await executeMessage(availAccount, api, availClaimData);
           if (!mintOnAvail.status.isFinalized) throw new Error("Not finalized");
           console.log("✅ Transaction included in block:", mintOnAvail.txHash);
           break;

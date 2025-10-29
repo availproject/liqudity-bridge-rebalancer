@@ -1,4 +1,4 @@
-import { initialize } from "avail-js-sdk";
+import { disconnect, initialize } from "avail-js-sdk";
 import { getTokenBalance, validateEnvVars } from "../utils/helpers";
 import { availAccount, baseClient } from "../utils/client";
 import { BigNumber } from "bignumber.js";
@@ -17,11 +17,11 @@ export async function entrypoint() {
     markJobStarted();
 
     const api = await initialize(process.env.AVAIL_RPC);
-    const THRESHOLD = new BigNumber(100000000000000);
+    const THRESHOLD = new BigNumber(process.env.THRESHOLD!);
     const GAS_THRESHOLD = new BigNumber(process.env.GAS_THRESHOLD!);
     const AMOUNT_TO_BRIDGE = process.env.AMOUNT_TO_BRIDGE!;
     const AMOUNT_TO_BRIDGE_FORMATTED = new BigNumber(AMOUNT_TO_BRIDGE)
-      .dividedBy(10 ** 18)
+      .dividedBy(10 ** 18)!
       .toFixed(4);
 
     const poolBalances = await getTokenBalance(
@@ -51,11 +51,7 @@ export async function entrypoint() {
     *Action:* Bridging ${AMOUNT_TO_BRIDGE_FORMATTED} tokens from BASE to AVAIL`,
           type: "info",
         });
-        bridgingResult = await BASE_TO_AVAIL(
-          availAccount,
-          api,
-          AMOUNT_TO_BRIDGE,
-        );
+        bridgingResult = await BASE_TO_AVAIL(api, AMOUNT_TO_BRIDGE);
         break;
 
       case THRESHOLD.gt(poolBalances.evmPoolBalance):
@@ -71,11 +67,7 @@ export async function entrypoint() {
     *Action:* Bridging ${AMOUNT_TO_BRIDGE_FORMATTED} tokens from AVAIL to BASE`,
           type: "info",
         });
-        bridgingResult = await AVAIL_TO_BASE(
-          api,
-          availAccount,
-          AMOUNT_TO_BRIDGE,
-        );
+        bridgingResult = await AVAIL_TO_BASE(api, AMOUNT_TO_BRIDGE);
         break;
 
       default:
@@ -111,6 +103,7 @@ export async function entrypoint() {
     if (isJobRunning()) {
       markJobCompleted();
     }
+    disconnect();
     process.exit(1);
   }
 }

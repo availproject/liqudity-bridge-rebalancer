@@ -1,9 +1,26 @@
-import { Elysia } from "elysia";
+import { Elysia, t } from "elysia";
 import { cron, Patterns } from "@elysiajs/cron";
 import { getJobHistory, getLastJobStatus } from "../utils/db";
 import { entrypoint } from "../scripts/entrypoint";
+import { initiateWormholeBridge } from "../utils/wormhole";
+
+const API_KEY =
+  process.env.ADMIN_KEY ??
+  (() => {
+    console.error("Missing ADMIN_KEY env");
+    process.exit(1);
+  })();
 
 const app = new Elysia()
+  .guard({
+    headers: t.Object({ "x-api-key": t.String() }),
+  })
+  .onBeforeHandle(({ headers, set }) => {
+    if (headers["x-api-key"] !== API_KEY) {
+      set.status = 401;
+      return "Unauthorized";
+    }
+  })
   .use(
     cron({
       name: "rebalancer",
@@ -78,5 +95,35 @@ const app = new Elysia()
       jobs: history,
     };
   });
+// .get("/legacy/eth-claim", ({ query }) => {}, {
+//   query: t.Object({
+//     blockNumber: t.Number(),
+//     txIndex: t.Number(),
+//     finalizedBlock: t.String({
+//       pattern: "^0x[a-fA-F0-9]{64}$",
+//       error: "finalizedBlock must be a 0x-prefixed 64-hex string",
+//     }),
+//   }),
+// })
+// .get("/legacy/avail-claim", ({ query }) => {}, {
+//   query: t.Object({
+//     blockNumber: t.Number(),
+//     messageId: t.Number(),
+//     amount: t.BigInt(),
+//   }),
+// })
+// .get(
+//   "legacy/wormhole-initiate",
+//   ({ query }) => {
+//     const initiateWormholeTxn = initiateWormholeBridge();
+//   },
+//   {
+//     query: t.Object({
+//       sourceChain: t.String(),
+//       destinationChain: t.String(),
+//       amount: t.String(),
+//     }),
+//   },
+// );
 
 app.listen(3000);

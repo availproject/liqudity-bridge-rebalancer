@@ -1,7 +1,6 @@
 import { ethers } from "ethers";
 import { createPublicClient, encodeAbiParameters, Hex, http } from "viem";
 import { bridgeContractAbi } from "../utils/abi";
-import { formatUnits, parseUnits } from "viem";
 
 import jsonbigint from "json-bigint";
 const JSONBigInt = jsonbigint({ useNativeBigInt: true });

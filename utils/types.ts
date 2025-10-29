@@ -204,8 +204,8 @@ export interface Operation {
   vaa: Vaa;
   content: Content;
   sourceChain: SourceChain;
-  targetChain: TargetChain;
-  data: Data;
+  targetChain?: TargetChain;
+  data?: Data;
 }
 
 export interface EmitterAddress {
@@ -315,6 +315,9 @@ export interface TargetChain {
   status: string;
   from: string;
   to: string;
+  fee: string;
+  gasTokenNotional: string;
+  feeUSD: string;
   balanceChanges: BalanceChange[];
 }
 

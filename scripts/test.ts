@@ -8,9 +8,13 @@ import {
 } from "../utils/helpers";
 import { HeadResponse, IChain } from "../utils/types";
 import { entrypoint } from "./entrypoint";
+import { AVAIL_TO_BASE } from "./avail_to_base";
+import { initialize } from "avail-js-sdk";
+import { BASE_TO_AVAIL } from "./base_to_avail";
 
 async function main() {
   try {
+    const api = await initialize(process.env.AVAIL_RPC);
     // while (true) {
     //   const headRsp = await fetch(process.env.BRIDGE_API_URL + "/avl/head");
     //   if (!headRsp.ok) throw new Error("Failed to fetch chain head");
@@ -72,12 +76,12 @@ async function main() {
     // }
     // await entrypoint();
 
-    const a = await initiateWormholeBridge(
-      publicClient,
-      process.env.ETH_NETWORK!,
-      process.env.BASE_NETWORK!,
-      BigInt(10000000000000),
-    );
+    // const a = await initiateWormholeBridge(
+    //   publicClient,
+    //   process.env.ETH_NETWORK!,
+    //   process.env.BASE_NETWORK!,
+    //   BigInt(10000000000000),
+    // );
 
     // const a = await initiateWormholeBridge(
     //   baseClient as PublicClient,
@@ -86,6 +90,8 @@ async function main() {
     //   BigInt(10000000000000),
     // );
 
+    // const a = await AVAIL_TO_BASE(api, "1400000000000000000");
+    const a = await BASE_TO_AVAIL(api, "1400000000000000000");
     console.log(a);
   } catch (error) {
     console.error(error);

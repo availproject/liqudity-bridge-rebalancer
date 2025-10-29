@@ -19,6 +19,8 @@
     "@types/json-bigint": "^1.0.4",
     "@wormhole-foundation/sdk": "3.8.8",
     "@wormhole-foundation/sdk-route-ntt": "3.0.4",
+    "@wormhole-foundation/sdk-definitions-ntt": "^3.0.4",
+    "@wormhole-foundation/sdk-evm-ntt": "^3.0.4",
     "avail-js-sdk": "^0.4.2",
     "better-sqlite3": "^12.4.1",
     "bignumber.js": "^9.3.0",
@@ -29,6 +31,11 @@
   },
   "devDependencies": {
     "bun-types": "latest"
+  },
+  "overrides": {
+    "@wormhole-foundation/sdk": "^3.9.0",
+    "@wormhole-foundation/sdk-base": "^3.9.0",
+    "@wormhole-foundation/sdk-definitions": "^3.9.0"
   },
   "module": "src/index.js"
 }
