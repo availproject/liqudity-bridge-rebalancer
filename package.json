@@ -23,7 +23,6 @@
     "@wormhole-foundation/sdk-evm-ntt": "^3.0.4",
     "@wormhole-foundation/sdk-route-ntt": "3.0.4",
     "avail-js-sdk": "^0.4.2",
-    "better-sqlite3": "^12.4.1",
     "bignumber.js": "^9.3.0",
     "elysia": "^1.4.10",
     "ethers": "^5.7.2",
