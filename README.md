@@ -237,46 +237,6 @@ curl -H "x-api-key: YOUR_API_KEY" \
 
 ---
 
-## Rebalancing Logic
-
-The automated rebalancer runs every 10 minutes and follows this logic:
-
-```
-START
-  ↓
-Fetch Pool Balances
-  ├─ AVAIL token balance
-  ├─ BASE token balance
-  └─ BASE gas balance
-  ↓
-Check Gas Threshold
-  ├─ If gas < GAS_THRESHOLD
-  │   └─ THROW ERROR: "Please top up gas"
-  ↓
-Check AVAIL Balance < THRESHOLD?
-  ├─ YES → Bridge BASE → AVAIL
-  │   1. Send notification (job starting)
-  │   2. Lock tokens on BASE
-  │   3. Wait for Wormhole attestation
-  │   4. Claim tokens on AVAIL
-  │   5. Send notification (success/failure)
-  ↓
-Check BASE Balance < THRESHOLD?
-  ├─ YES → Bridge AVAIL → BASE
-  │   1. Send notification (job starting)
-  │   2. Lock tokens on AVAIL
-  │   3. Wait for Wormhole attestation
-  │   4. Claim tokens on BASE
-  │   5. Send notification (success/failure)
-  ↓
-Both Balances Sufficient?
-  └─ Log: "No rebalancing required"
-  ↓
-END
-```
-
----
-
 ## Error Handling
 
 - All jobs log to local database with timestamps
@@ -302,8 +262,7 @@ Keys are validated using Unkey service. Invalid keys return `401 Unauthorized`.
 
 - Check `/status` endpoint for current job state
 - Review `/history` for past execution logs
-- Set up Slack webhooks for real-time notifications
-- Monitor gas balances to prevent transaction failures
+- Slack notifier setup for real-time notifications
 
 ---
 
