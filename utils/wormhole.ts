@@ -216,6 +216,7 @@ export async function initiateWormholeBridge(
   const result = await getTxnStatus((txnIds[1]?.txid ?? txnIds[0].txid) as Hex);
 
   return {
+    wormholeInitiateHash: txnIds[1]?.txid ?? txnIds[0].txid,
     txHash: result.operations[0].targetChain!.transaction.txHash,
     status: result.operations[0].targetChain!.status,
   };

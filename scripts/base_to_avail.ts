@@ -165,7 +165,8 @@ export async function BASE_TO_AVAIL(
       return {
         initiateExplorerLink: getExplorerURLs(
           IChain.BASE,
-          initiateHash.txHash,
+          //we know for sure we'll have it until here
+          initiateHash.wormholeInitiateHash!,
           "Txn",
         ),
         destinationExplorerLink: getExplorerURLs(

@@ -117,6 +117,7 @@ export type WithBalanceData<T, U = any> = T & {
 export interface TxnReturnType<T = string> {
   status: T;
   txHash: string;
+  wormholeInitiateHash?: string;
   event?: {
     type: "messageSent";
     logIndex?: number;

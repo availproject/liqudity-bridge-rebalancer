@@ -21,29 +21,95 @@ export async function sendNotificationChannel({
 
   const meta = TYPE_META[type] ?? TYPE_META.info;
 
-  const baseBlocks: [HeaderBlock, SectionBlock] = [
+  const detailLines = details.split("\n").filter((line) => line.trim());
+  const fields: Array<{ type: string; text: string }> = [];
+  const sections: string[] = [];
+  let currentSection = "";
+
+  for (const line of detailLines) {
+    const trimmedLine = line.trim();
+
+    if (trimmedLine.startsWith("*") && trimmedLine.includes(":*")) {
+      const match = trimmedLine.match(/^\*([^:]+):\*\s*(.*)$/);
+      if (match) {
+        const [, key, value] = match;
+        if (value) {
+          fields.push({
+            type: "mrkdwn",
+            text: `*${key.trim()}:*\n${value.trim()}`,
+          });
+        } else {
+          if (currentSection) {
+            sections.push(currentSection.trim());
+          }
+          currentSection = `*${key.trim()}:*\n`;
+        }
+      }
+    } else if (trimmedLine.startsWith("-") || trimmedLine) {
+      currentSection += trimmedLine + "\n";
+    }
+  }
+
+  if (currentSection) {
+    sections.push(currentSection.trim());
+  }
+
+  const blocks: any[] = [
     {
       type: "header",
-      text: { type: "plain_text", text: `${meta.emoji} ${title}` },
+      text: {
+        type: "plain_text",
+        text: `${title} ${meta.emoji} `,
+        emoji: true,
+      },
     },
-    { type: "section", text: { type: "mrkdwn", text: details } },
+    { type: "divider" },
   ];
-  const actionBlocks: [ActionsBlock] | [] = link
-    ? [
+
+  if (fields.length > 0) {
+    blocks.push({
+      type: "section",
+      fields: fields,
+    });
+  }
+
+  for (const section of sections) {
+    blocks.push({
+      type: "section",
+      text: { type: "mrkdwn", text: section },
+    });
+  }
+
+  if (link) {
+    blocks.push({
+      type: "actions",
+      elements: [
         {
-          type: "actions",
-          elements: [
-            {
-              type: "button",
-              text: { type: "plain_text", text: "View Details" },
-              url: link,
-              style: meta.buttonStyle,
-            },
-          ],
+          type: "button",
+          text: { type: "plain_text", text: "View Details", emoji: true },
+          url: link,
+          style: meta.buttonStyle,
         },
-      ]
-    : [];
-  const blocks = [...baseBlocks, ...actionBlocks];
+      ],
+    });
+  }
+
+  blocks.push(
+    { type: "divider" },
+    {
+      type: "context",
+      elements: [
+        {
+          type: "mrkdwn",
+          text: `⏰ ${new Date().toLocaleString("en-US", {
+            dateStyle: "medium",
+            timeStyle: "short",
+          })}`,
+        },
+      ],
+    },
+  );
+
   const textFallback = `${meta.prefix}: ${title} — ${details}`;
 
   const res = await fetch("https://slack.com/api/chat.postMessage", {
@@ -65,7 +131,6 @@ export async function sendNotificationChannel({
   }
 
   const json = (await res.json()) as SlackOk | SlackErr;
-
   if (!json.ok) {
     const needed = json.needed ? ` (needed: ${json.needed})` : "";
     const provided = json.provided ? ` (provided: ${json.provided})` : "";

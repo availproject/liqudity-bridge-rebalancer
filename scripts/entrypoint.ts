@@ -38,22 +38,6 @@ export async function entrypoint() {
 
     let bridgingResult!: BridgingResult | string;
     switch (true) {
-      case THRESHOLD.gt(poolBalances.availPoolBalance):
-        await sendNotificationChannel({
-          title: "BASE TO AVAIL REBALANCING JOB STARTING",
-          details: `*Job Started:* ${new Date().toLocaleString()}
-    *Reason:* Funds are low on AVAIL
-
-    *Current Balances:*
-    - AVAIL: ${poolBalances.humanFormatted.availPoolBalance} tokens
-    - BASE: ${poolBalances.humanFormatted.evmPoolBalance} tokens
-
-    *Action:* Bridging ${AMOUNT_TO_BRIDGE_FORMATTED} tokens from BASE to AVAIL`,
-          type: "info",
-        });
-        bridgingResult = await BASE_TO_AVAIL(api, AMOUNT_TO_BRIDGE);
-        break;
-
       case THRESHOLD.gt(poolBalances.evmPoolBalance):
         await sendNotificationChannel({
           title: "AVAIL TO BASE REBALANCING JOB STARTING",
@@ -68,6 +52,22 @@ export async function entrypoint() {
           type: "info",
         });
         bridgingResult = await AVAIL_TO_BASE(api, AMOUNT_TO_BRIDGE);
+        break;
+
+      case THRESHOLD.gt(poolBalances.availPoolBalance):
+        await sendNotificationChannel({
+          title: "BASE TO AVAIL REBALANCING JOB STARTING",
+          details: `*Job Started:* ${new Date().toLocaleString()}
+      *Reason:* Funds are low on AVAIL
+
+      *Current Balances:*
+      - AVAIL: ${poolBalances.humanFormatted.availPoolBalance} tokens
+      - BASE: ${poolBalances.humanFormatted.evmPoolBalance} tokens
+
+      *Action:* Bridging ${AMOUNT_TO_BRIDGE_FORMATTED} tokens from BASE to AVAIL`,
+          type: "info",
+        });
+        bridgingResult = await BASE_TO_AVAIL(api, AMOUNT_TO_BRIDGE);
         break;
 
       default:
