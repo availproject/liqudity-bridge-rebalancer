@@ -156,6 +156,7 @@ export async function sendNotificationChannel({
     },
     body: JSON.stringify({
       channel: "C09LZ3R9MT3",
+      text: `${meta.prefix}: ${title}`,
       attachments: [
         {
           color: meta.color,

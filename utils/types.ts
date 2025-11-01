@@ -12,12 +12,37 @@ export type SlackErr = {
 
 export const TYPE_META: Record<
   LogType,
-  { prefix: string; emoji: string; buttonStyle: "primary" | "danger"; color: string }
+  {
+    prefix: string;
+    emoji: string;
+    buttonStyle: "primary" | "danger";
+    color: string;
+  }
 > = {
-  error: { prefix: "ERROR", emoji: "❌", buttonStyle: "danger", color: "#e01e5a" },
-  warn: { prefix: "WARNING", emoji: "⚠️", buttonStyle: "danger", color: "#daa038" },
-  info: { prefix: "INFO", emoji: "🎛️", buttonStyle: "primary", color: "#1264a3" },
-  success: { prefix: "SUCCESS", emoji: "✅", buttonStyle: "primary", color: "#2eb886" },
+  error: {
+    prefix: "ERROR",
+    emoji: " ❌ ",
+    buttonStyle: "danger",
+    color: "#e01e5a",
+  },
+  warn: {
+    prefix: "WARNING",
+    emoji: " ⚠️ ",
+    buttonStyle: "danger",
+    color: "#daa038",
+  },
+  info: {
+    prefix: "INFO",
+    emoji: " 🎛️ ",
+    buttonStyle: "primary",
+    color: "#1264a3",
+  },
+  success: {
+    prefix: "SUCCESS",
+    emoji: " ✅ ",
+    buttonStyle: "primary",
+    color: "#2eb886",
+  },
 };
 
 export interface BridgingResult {

@@ -33,21 +33,9 @@ export async function entrypoint() {
     }
     let bridgingResult!: BridgingResult | string;
     switch (true) {
-      case THRESHOLD.gt(poolBalances.availPoolBalance):
-        await sendNotificationChannel({
-          title: "BASE TO AVAIL REBALANCING JOB STARTING",
-          details: `*Action:* Bridging ${AMOUNT_TO_BRIDGE_FORMATTED} tokens from BASE to AVAIL
-*Reason:* Funds are low on AVAIL
-*Current Balances:*
-- AVAIL: ${poolBalances.humanFormatted.availPoolBalance} tokens
-- BASE: ${poolBalances.humanFormatted.evmPoolBalance} tokens`,
-          type: "info",
-        });
-        bridgingResult = await BASE_TO_AVAIL(api, AMOUNT_TO_BRIDGE);
-        break;
       case THRESHOLD.gt(poolBalances.evmPoolBalance):
         await sendNotificationChannel({
-          title: "AVAIL TO BASE REBALANCING JOB STARTING",
+          title: "Avail to Base rebalancing starting",
           details: `*Action:* Bridging ${AMOUNT_TO_BRIDGE_FORMATTED} tokens from AVAIL to BASE
   *Reason:* Funds are low on BASE
   *Current Balances:*
@@ -57,19 +45,31 @@ export async function entrypoint() {
         });
         bridgingResult = await AVAIL_TO_BASE(api, AMOUNT_TO_BRIDGE);
         break;
+      case THRESHOLD.gt(poolBalances.availPoolBalance):
+        await sendNotificationChannel({
+          title: "Base To Avail rebalancing starting",
+          details: `*Action:* Bridging ${AMOUNT_TO_BRIDGE_FORMATTED} tokens from BASE to AVAIL
+  *Reason:* Funds are low on AVAIL
+  *Current Balances:*
+  - AVAIL: ${poolBalances.humanFormatted.availPoolBalance} tokens
+  - BASE: ${poolBalances.humanFormatted.evmPoolBalance} tokens`,
+          type: "info",
+        });
+        bridgingResult = await BASE_TO_AVAIL(api, AMOUNT_TO_BRIDGE);
+        break;
       default:
         bridgingResult = "Balances are sufficient. No bridging required.";
     }
 
     if (typeof bridgingResult === "string") {
       await sendNotificationChannel({
-        title: "Job Completed Successfully",
+        title: "Rebalancing Completed Successfully",
         details: `*Result:* ${bridgingResult}`,
         type: "success",
       });
     } else {
       await sendNotificationChannel({
-        title: "Job Completed Successfully",
+        title: "Rebalancing Completed Successfully",
         details: `*Result:* Bridging completed successfully`,
         initiateLink: bridgingResult.initiateExplorerLink,
         destinationLink: bridgingResult.destinationExplorerLink,
@@ -80,7 +80,7 @@ export async function entrypoint() {
     console.error("Error in job", error);
     markJobCompleted(error.message);
     await sendNotificationChannel({
-      title: "Job Failed",
+      title: "Rebalancing Failed",
       details: `*Error:* ${error.message}`,
       type: "error",
     });
