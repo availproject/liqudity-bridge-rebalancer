@@ -207,7 +207,7 @@ curl -H "x-api-key: YOUR_API_KEY" \
 #### 4. Initiate Wormhole Bridge (Legacy)
 ```bash
 curl -H "x-api-key: YOUR_API_KEY" \
-  "http://localhost:3001/legacy/wormhole-initiate?sourceChain=Base&destinationChain=Avail&amount=1000000000000000000"
+  "http://localhost:3001/legacy/wormhole-initiate?sourceChain=Base&destinationChain=Ethereum&amount=1000000000000000000"
 ```
 
 **Query Parameters:**

@@ -1,15 +1,18 @@
-import { ActionsBlock, HeaderBlock, SectionBlock } from "@slack/web-api";
 import { LogType, SlackErr, SlackOk, TYPE_META } from "./types";
 
 export async function sendNotificationChannel({
   title,
   details,
   link,
+  initiateLink,
+  destinationLink,
   type,
 }: {
   title: string;
   details: string;
   link?: string;
+  initiateLink?: string;
+  destinationLink?: string;
   type: LogType;
 }) {
   const token = process.env.SLACK_BOT_TOKEN;
@@ -22,7 +25,7 @@ export async function sendNotificationChannel({
   const meta = TYPE_META[type] ?? TYPE_META.info;
 
   const detailLines = details.split("\n").filter((line) => line.trim());
-  const fields: Array<{ type: string; text: string }> = [];
+  const fieldsMap = new Map<string, string>();
   const sections: string[] = [];
   let currentSection = "";
 
@@ -33,11 +36,12 @@ export async function sendNotificationChannel({
       const match = trimmedLine.match(/^\*([^:]+):\*\s*(.*)$/);
       if (match) {
         const [, key, value] = match;
+        const keyLower = key.trim().toLowerCase();
+        if (keyLower === "job started" || keyLower === "job finished") {
+          continue;
+        }
         if (value) {
-          fields.push({
-            type: "mrkdwn",
-            text: `*${key.trim()}:*\n${value.trim()}`,
-          });
+          fieldsMap.set(key.trim(), value.trim());
         } else {
           if (currentSection) {
             sections.push(currentSection.trim());
@@ -52,6 +56,27 @@ export async function sendNotificationChannel({
 
   if (currentSection) {
     sections.push(currentSection.trim());
+  }
+
+  const fieldOrder = ["Action", "Reason"];
+  const fields: Array<{ type: string; text: string }> = [];
+
+  for (const fieldName of fieldOrder) {
+    if (fieldsMap.has(fieldName)) {
+      fields.push({
+        type: "mrkdwn",
+        text: `*${fieldName}:*\n${fieldsMap.get(fieldName)}`,
+      });
+    }
+  }
+
+  for (const [key, value] of fieldsMap.entries()) {
+    if (!fieldOrder.includes(key)) {
+      fields.push({
+        type: "mrkdwn",
+        text: `*${key}:*\n${value}`,
+      });
+    }
   }
 
   const blocks: any[] = [
@@ -80,17 +105,28 @@ export async function sendNotificationChannel({
     });
   }
 
-  if (link) {
+  if (initiateLink || destinationLink) {
+    let linksText = "*Explorer Links:*\n";
+    if (initiateLink) {
+      linksText += `- Initiate Transaction: <${initiateLink}|View in Explorer>\n`;
+    }
+    if (destinationLink) {
+      linksText += `- Destination Transaction: <${destinationLink}|View in Explorer>`;
+    }
     blocks.push({
-      type: "actions",
-      elements: [
-        {
-          type: "button",
-          text: { type: "plain_text", text: "View Details", emoji: true },
-          url: link,
-          style: meta.buttonStyle,
-        },
-      ],
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: linksText,
+      },
+    });
+  } else if (link) {
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `<${link}|View in Log Explorer>`,
+      },
     });
   }
 
@@ -120,8 +156,12 @@ export async function sendNotificationChannel({
     },
     body: JSON.stringify({
       channel: "C09LZ3R9MT3",
-      text: textFallback,
-      blocks,
+      attachments: [
+        {
+          color: meta.color,
+          blocks: blocks,
+        },
+      ],
     }),
   });
 
