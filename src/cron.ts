@@ -24,7 +24,7 @@ const cronjob = new Elysia()
   .use(
     cron({
       name: "rebalancer",
-      pattern: Patterns.EVERY_10_SECONDS,
+      pattern: Patterns.EVERY_HOUR,
       protect: true,
       async run() {
         await entrypoint();

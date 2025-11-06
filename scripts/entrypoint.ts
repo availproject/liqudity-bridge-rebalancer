@@ -63,7 +63,7 @@ export async function entrypoint() {
 
     if (typeof bridgingResult === "string") {
       await sendNotificationChannel({
-        title: `[${process.env.CONFIG}] Rebalancing Completed Successfully`,
+        title: `[${process.env.CONFIG}] Balances are sufficient`,
         details: `*Result:* ${bridgingResult}`,
         type: "success",
       });
