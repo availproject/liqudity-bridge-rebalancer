@@ -35,7 +35,7 @@ export async function entrypoint() {
     switch (true) {
       case THRESHOLD.gt(poolBalances.evmPoolBalance):
         await sendNotificationChannel({
-          title: "Avail to Base rebalancing starting",
+          title: `[${process.env.CONFIG}] Avail to Base rebalancing starting`,
           details: `*Action:* Bridging ${AMOUNT_TO_BRIDGE_FORMATTED} tokens from AVAIL to BASE
   *Reason:* Funds are low on BASE
   *Current Balances:*
@@ -47,7 +47,7 @@ export async function entrypoint() {
         break;
       case THRESHOLD.gt(poolBalances.availPoolBalance):
         await sendNotificationChannel({
-          title: "Base To Avail rebalancing starting",
+          title: `[${process.env.CONFIG}] Base To Avail rebalancing starting`,
           details: `*Action:* Bridging ${AMOUNT_TO_BRIDGE_FORMATTED} tokens from BASE to AVAIL
   *Reason:* Funds are low on AVAIL
   *Current Balances:*
@@ -63,13 +63,13 @@ export async function entrypoint() {
 
     if (typeof bridgingResult === "string") {
       await sendNotificationChannel({
-        title: "Rebalancing Completed Successfully",
+        title: `[${process.env.CONFIG}] Rebalancing Completed Successfully`,
         details: `*Result:* ${bridgingResult}`,
         type: "success",
       });
     } else {
       await sendNotificationChannel({
-        title: "Rebalancing Completed Successfully",
+        title: `[${process.env.CONFIG}] Rebalancing Completed Successfully`,
         details: `*Result:* Bridging completed successfully`,
         initiateLink: bridgingResult.initiateExplorerLink,
         destinationLink: bridgingResult.destinationExplorerLink,
@@ -80,7 +80,7 @@ export async function entrypoint() {
     console.error("Error in job", error);
     markJobCompleted(error.message);
     await sendNotificationChannel({
-      title: "Rebalancing Failed",
+      title: `[${process.env.CONFIG}] Rebalancing Failed`,
       details: `*Error:* ${error.message}`,
       type: "error",
     });
