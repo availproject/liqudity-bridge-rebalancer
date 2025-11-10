@@ -160,12 +160,12 @@ export async function initiateWormholeBridge(
 
   for (let i = 0; i < 3; i++) {
     try {
-      const minEthRequired = parseUnits("0.001", 18);
-      if (ethBalance < minEthRequired) {
-        throw new Error(
-          `Insufficient ETH for gas. Required: 0.001 ETH, Current: ${formatUnits(ethBalance, 18)} ETH`,
-        );
-      }
+      // const minEthRequired = parseUnits("0.001", 18);
+      // if (ethBalance < minEthRequired) {
+      //   throw new Error(
+      //     `Insufficient ETH for gas. Required: 0.001 ETH, Current: ${formatUnits(ethBalance, 18)} ETH`,
+      //   );
+      // }
 
       console.log(`🔄 Initiating bridge to ${dstChain}`);
 
