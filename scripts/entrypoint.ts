@@ -33,18 +33,6 @@ export async function entrypoint() {
     }
     let bridgingResult!: BridgingResult | string;
     switch (true) {
-      case THRESHOLD.gt(poolBalances.evmPoolBalance):
-        await sendNotificationChannel({
-          title: `[${process.env.CONFIG}] Avail to Base rebalancing starting`,
-          details: `*Action:* Bridging ${AMOUNT_TO_BRIDGE_FORMATTED} tokens from AVAIL to BASE
-  *Reason:* Funds are low on BASE
-  *Current Balances:*
-  - AVAIL: ${poolBalances.humanFormatted.availPoolBalance} tokens
-  - BASE: ${poolBalances.humanFormatted.evmPoolBalance} tokens`,
-          type: "info",
-        });
-        bridgingResult = await AVAIL_TO_BASE(api, AMOUNT_TO_BRIDGE);
-        break;
       case THRESHOLD.gt(poolBalances.availPoolBalance):
         await sendNotificationChannel({
           title: `[${process.env.CONFIG}] Base To Avail rebalancing starting`,
@@ -56,6 +44,18 @@ export async function entrypoint() {
           type: "info",
         });
         bridgingResult = await BASE_TO_AVAIL(api, AMOUNT_TO_BRIDGE);
+        break;
+      case THRESHOLD.gt(poolBalances.evmPoolBalance):
+        await sendNotificationChannel({
+          title: `[${process.env.CONFIG}] Avail to Base rebalancing starting`,
+          details: `*Action:* Bridging ${AMOUNT_TO_BRIDGE_FORMATTED} tokens from AVAIL to BASE
+    *Reason:* Funds are low on BASE
+    *Current Balances:*
+    - AVAIL: ${poolBalances.humanFormatted.availPoolBalance} tokens
+    - BASE: ${poolBalances.humanFormatted.evmPoolBalance} tokens`,
+          type: "info",
+        });
+        bridgingResult = await AVAIL_TO_BASE(api, AMOUNT_TO_BRIDGE);
         break;
       default:
         bridgingResult = "Balances are sufficient. No bridging required.";
