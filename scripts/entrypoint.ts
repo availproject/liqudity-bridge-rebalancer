@@ -62,11 +62,12 @@ export async function entrypoint() {
     }
 
     if (typeof bridgingResult === "string") {
-      await sendNotificationChannel({
-        title: `[${process.env.CONFIG}] Balances are sufficient`,
-        details: `*Result:* ${bridgingResult}`,
-        type: "success",
-      });
+      // commented this out in favour of not pingin the channel every hour on something like this
+      // await sendNotificationChannel({
+      //   title: `[${process.env.CONFIG}] Balances are sufficient`,
+      //   details: `*Result:* ${bridgingResult}`,
+      //   type: "success",
+      // });
     } else {
       await sendNotificationChannel({
         title: `[${process.env.CONFIG}] Rebalancing Completed Successfully`,
