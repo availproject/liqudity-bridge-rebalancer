@@ -17,7 +17,7 @@ import {
   AccountAndStorageProof,
 } from "./types";
 import { BigNumber } from "bignumber.js";
-import { publicClient, walletClient } from "./client";
+import { baseClient, publicClient, walletClient } from "./client";
 import { availTokenAbi, bridgeContractAbi, messageSentEvent } from "./abi";
 import {
   decodeEventLog,
@@ -64,7 +64,6 @@ export async function getAccountStorageProofs(
 
 export async function getTokenBalance(
   api: ApiPromise,
-  chainClient: PublicClient = publicClient,
   availAddress?: String,
   evmAddress?: Hex,
 ) {
@@ -78,26 +77,34 @@ export async function getTokenBalance(
   const frozenBalance = new BigNumber(frozen.toString());
   const spendableBalance = freeBalance.minus(frozenBalance);
 
-  const evmPoolBalance = await chainClient.readContract({
+  const basePoolBalance = await baseClient.readContract({
     address: process.env.AVAIL_TOKEN_BASE as Hex,
     abi: availTokenAbi,
     functionName: "balanceOf",
     args: [evmAddress ?? (process.env.EVM_POOL_ADDRESS as Hex)],
   });
 
-  const gasCheck = await chainClient.getBalance({
+  const gasCheckBase = await baseClient.getBalance({
+    address: evmAddress ?? (process.env.EVM_POOL_ADDRESS as Hex),
+  });
+
+  const gasCheckEthereum = await publicClient.getBalance({
     address: evmAddress ?? (process.env.EVM_POOL_ADDRESS as Hex),
   });
 
   return {
-    evmPoolBalance: new BigNumber(evmPoolBalance),
-    gasOnEvm: new BigNumber(gasCheck),
+    basePoolBalance: new BigNumber(basePoolBalance),
+    gasCheckBase: new BigNumber(gasCheckBase),
+    gasCheckEthereum: new BigNumber(gasCheckEthereum),
     availPoolBalance: spendableBalance,
     humanFormatted: {
-      evmPoolBalance: new BigNumber(evmPoolBalance)
+      basePoolBalance: new BigNumber(basePoolBalance)
         .dividedBy(10 ** 18)
         .toFixed(4),
-      gasOnEvm: new BigNumber(gasCheck).dividedBy(10 ** 18).toFixed(4),
+      gasCheckBase: new BigNumber(gasCheckBase).dividedBy(10 ** 18).toFixed(4),
+      gasCheckEthereum: new BigNumber(gasCheckEthereum)
+        .dividedBy(10 ** 18)
+        .toFixed(4),
       availPoolBalance: spendableBalance.dividedBy(10 ** 18).toFixed(4),
     },
   };
